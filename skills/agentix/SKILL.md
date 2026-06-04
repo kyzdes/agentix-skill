@@ -1,6 +1,6 @@
 ---
 name: agentix
-description: Work the Agentix issue tracker — an agent-native, Linear-style tracker exposed over an MCP server named `agentix` (projects, epics, issues, milestones, checklists, and a wiki). Use whenever the agentix MCP tools are present (get_started, get_context, create_issue, search, create_document, set_task_spec…) or the user mentions Agentix, "the tracker", "заведи/создай задачу", "create an issue/task", "log work", planning epics/milestones, or maintaining the wiki/index/"оглавление". Teaches the orientation workflow (get_started → index → get_context), the task-creation template (title + spec + checklist), and the index convention that keeps agents from reading the whole wiki. NOT for GitHub Issues, Jira, or the hosted Linear MCP — those are different tools.
+description: Work the Agentix issue tracker — an agent-native, Linear-style tracker (projects, epics, issues, milestones, checklists, wiki) reached over a REMOTE, hosted MCP server named `agentix` (REST mirror at `/api/*`). Use whenever the agentix MCP tools are present (get_started, get_context, create_issue, search, create_document, set_task_spec…), OR the user mentions Agentix / "the tracker" / "заведи/создай задачу" / "create an issue/task" / "log work" / planning epics/milestones / the wiki/index/"оглавление", OR asks to write, file, sync, or push tasks, specs, backlog, epics, context, or docs INTO Agentix — even from a different project or repo. Agentix is a running service you connect to over MCP — if a local agentix repo exists, that is the source code, NOT how you use it (never run it locally). Teaches: how to find the URL+token (incl. keys-keeper) and connect, the orientation workflow (get_started → index → get_context), the task template (title + spec + checklist), and the index convention. NOT for GitHub Issues, Jira, or the hosted Linear MCP.
 metadata:
   short-description: Work the Agentix agent-native issue tracker over MCP
   version: "0.1"
@@ -14,16 +14,22 @@ Agentix is an **agent-native issue tracker** — projects → epics → issues �
 
 **Don't read everything.** Call `get_started` first, then pull only what the task needs (`get_context`, `search`, targeted `list_*`). Reading the whole wiki "to understand the project" is the exact failure mode this skill exists to prevent — it burns your context before you've done any work.
 
-## Connect (once)
+## Connect — Agentix is a REMOTE service (do NOT run it locally)
 
-The human creates an agent user + API token in Agentix (Settings → Members → Create agent, then Settings → API tokens), then registers the server:
+Agentix runs as a hosted/self-hosted server; you **use** it over MCP, you don't stand it up. **If an `agentix` repo exists on disk, that's the source code — it is NOT how you connect. Never `npm run dev` / spin up the local app to "use the tracker."** Working with Agentix from another project is normal — the tracker is remote.
 
-```
-claude mcp add --transport http agentix https://YOUR_DOMAIN/api/mcp \
-  --header "Authorization: Bearer <TOKEN>"
-```
+1. **Check first.** Try `get_started` (or `whoami`). If it works, you're connected — skip to the work cycle.
+2. **No agentix tools? The MCP just isn't registered yet.** Find the server URL + an API token:
+   - If the user uses **keys-keeper**, it's almost certainly stored there. Look: `keys list --search agentix`. Get the URL from `keys info agentix-mcp` (or `agentix`), and load the token without exposing it: `keys inject agentix-mcp --file /tmp/agx.env --as AGT` (then `source` it). Don't paste tokens into chat.
+   - Otherwise ask the human for the Agentix URL + a token (they mint one: Settings → Members → create an agent, then Settings → API tokens — shown once).
+3. **Register it** (user scope = available in every project):
+   ```
+   claude mcp add --scope user --transport http agentix https://YOUR_DOMAIN/api/mcp \
+     --header "Authorization: Bearer <TOKEN>"
+   ```
+   MCP servers load at session start, so **reload/restart the session** after adding. Confirm with `whoami` → `{ name, kind: "agent", role }`.
 
-Confirm with `whoami` — it returns your actor `{ name, kind: "agent", role }`.
+Until the MCP is connected you can also drive Agentix over its **REST API** with the same token (`GET /api/started`, `POST /api/issues`, …) — see `references/tools.md`.
 
 ## The work cycle (follow it every time)
 
