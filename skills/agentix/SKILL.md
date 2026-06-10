@@ -77,10 +77,21 @@ Full template, field-by-field, with the Linear-derived best practices adapted to
 ## Working an issue
 
 - `get_context(issue)` to load everything. Work from its `brief`.
-- `move_issue(issue, "in_progress")` when you start; `in_review` when you open a PR; `done` when criteria pass.
 - `check_item(itemId, true)` as you satisfy each acceptance criterion.
 - `add_comment` for decisions, blockers, and "what I did" — that's the audit trail other agents and humans read.
 - Found a dependency? `link_issues(issue, target, "blocks" | "relates" | "duplicates")`.
+
+### Status lifecycle (don't skip a step)
+
+Status is how the next agent and the human know what's actually happening. Move it as the work moves — never leave active work parked in `todo`/`backlog`.
+
+1. **`in_progress` BEFORE you touch code.** The moment you start working an issue, `move_issue(issue, "in_progress")`. Don't write a line until the status reflects that you own it.
+2. **`in_review` when the PR is up.** `move_issue(issue, "in_review")` when you open the PR / push for review. Reference the PR or commit in a comment.
+3. **`done` only when every checklist item is checked.** Don't close an issue with unticked acceptance criteria — those criteria *are* the definition of done. Tick each with `check_item` as it passes, leave a short summary comment, then `move_issue(issue, "done")`.
+
+As you go: `check_item` each criterion the moment it's true, and `add_comment` every decision, trade-off, or blocker — don't batch it to the end. **Epic status is auto-derived from its issues — never set an epic's status by hand.**
+
+Both gates spelled out as checklists: **`references/quality-gates.md`**.
 
 ## Search & navigate (instead of reading everything)
 
@@ -101,5 +112,6 @@ Step-by-step recipes (take an assigned issue, file a well-specced issue, plan an
 See also:
 - `references/tools.md` — every MCP tool with signatures and return shapes.
 - `references/task-template.md` — the issue-creation template + best practices (search-before-create, spec, checklist, granularity ladder).
+- `references/quality-gates.md` — the two checklists: ready-to-start (move to in_progress) and ready-for-done.
 - `references/index-convention.md` — the global + per-project index convention, templates, and when to update.
 - `references/workflows.md` — end-to-end recipes for the most common agent tasks.

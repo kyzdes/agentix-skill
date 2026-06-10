@@ -45,7 +45,7 @@ add_checklist_item(issue, "Bench shows lower p50 for repeat get_context calls")
 - **title** — plain language, imperative, specific. One scan tells you what "done" means. Avoid topic-nouns ("Search", "Benchmarking").
 - **description** — the *why* and the *intent*, plus constraints and pointers. Link related work with `[[AGX-12]]` and docs with `[[doc-slug]]` so the issue joins the graph (and shows up in `get_backlinks` / `get_context`). Use real newlines, not `\n`.
 - **priority** — `none / low / medium / high / urgent`. Set it honestly; default `none` is fine.
-- **spec (`set_task_spec`)** — the Agentix superpower. `relevantPaths` = the files/dirs to touch; `testCommand` = how to verify. This is what lets an agent start in seconds instead of grepping. Fill it for any code task.
+- **spec (`set_task_spec`)** — the Agentix superpower. `relevantPaths` = the files/dirs to touch; `testCommand` = how to verify. This is what lets an agent start in seconds instead of grepping. **A spec (relevantPaths + testCommand) is mandatory for any code task before it can move to `in_progress`** — no spec, not ready to start.
 - **acceptance criteria (`add_checklist_item`)** — one checkable item per criterion, phrased as a testable outcome. **Not** a prose paragraph in the description. The next agent ticks them with `check_item` as it goes; that *is* the definition of done.
 - **placement** — `epicId` for a theme of work, `milestone` for a dated deliverable, `parent`/`add_sub_issue` for a piece of a bigger issue.
 
@@ -69,12 +69,50 @@ sub-issue   <   issue   <   epic   <   milestone
 - `link_issues(A, B, "relates")` — related, no ordering.
 - `link_issues(A, B, "duplicates")` — A duplicates B; prefer this + a comment over filing the same work twice.
 
-## Don't hand-manage status
+## Status lifecycle
 
-Move status as work actually progresses — `move_issue(issue, "in_progress")` when
-you start, `"in_review"` when a PR is open, `"done"` when the checklist passes —
-and leave a `add_comment` trail of decisions and blockers. Status + checklist +
-comments are what make the issue legible to the next agent.
+Agentix issues move through four statuses. Move them as the work actually
+progresses — never leave active work parked in `todo` / `backlog`.
+
+- **`todo` / `backlog`** — filed and specced, nobody working it yet.
+- **`in_progress`** — `move_issue(issue, "in_progress")` *before* you write any
+  code. Starting work without flipping the status is the #1 way two agents
+  collide on the same issue.
+- **`in_review`** — `move_issue(issue, "in_review")` when the PR is open / the
+  change is up for review. Reference the PR or commit in a comment.
+- **`done`** — only when **every** checklist item is checked and you've left a
+  summary comment.
+
+**Epic status is auto-derived from its issues — never set it by hand.**
+
+## Checklist discipline
+
+The acceptance criteria are not decoration — they are the **definition of done**.
+
+- One `add_checklist_item` per criterion, phrased as a testable outcome. **Not**
+  a prose paragraph buried in the description.
+- `check_item(itemId, true)` the moment a criterion passes — tick as you go, not
+  in a batch at the end.
+- **Never move an issue to `done` with unchecked items.** Unticked criteria mean
+  the work isn't finished; close the gap or split the remainder into a follow-up
+  issue first.
+
+## Comments as an audit trail
+
+`add_comment` is the legible history other agents and humans read. Comment, don't
+just act silently:
+
+- on **every status change** — say what you did and why you're moving it.
+- on **blockers and decisions** — the trade-off you took, the dependency you
+  found (`link_issues(...)`), the thing that's waiting on someone else.
+- a **summary comment before `done`** — what shipped, which `testCommand` you
+  ran and that it was green, and the PR/commit reference.
+
+Status + checklist + comments together are what make the issue runnable by the
+next agent without asking you anything.
+
+The two gates (ready-to-start, ready-for-done) as concrete checklists:
+**`quality-gates.md`**.
 
 ## Quick checklist before you hit create
 

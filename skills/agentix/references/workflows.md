@@ -24,15 +24,21 @@ your inbox.
 ```
 get_inbox(unreadOnly: true)        # what's waiting on you
 get_context("AGX-12")              # full brief in one call
-move_issue("AGX-12", "in_progress")
+move_issue("AGX-12", "in_progress")          # BEFORE writing any code
 # …do the work, guided by the spec (relevantPaths) and testCommand…
 check_item(<itemId>, true)         # tick each acceptance criterion as it passes
-add_comment("AGX-12", "Implemented X; ran <testCommand>, green. Opening PR.")
-move_issue("AGX-12", "in_review")  # then "done" once merged/criteria pass
+add_comment("AGX-12", "Chose approach X over Y because <reason>.")  # decisions as you go
+# …open the PR…
+add_comment("AGX-12", "Ran <testCommand>, green. PR: <url>. Summary: <what shipped>.")
+move_issue("AGX-12", "in_review")  # when the PR is up
+# …after merge / all checklist items checked…
+move_issue("AGX-12", "done")       # only with every criterion ticked
 mark_read()                        # clear the inbox notifications
 ```
-Work from `get_context`'s `brief`; don't reconstruct context by hand. If you
-discover a dependency, `link_issues("AGX-12", "AGX-9", "blocks")`.
+Work from `get_context`'s `brief`; don't reconstruct context by hand. Move the
+status as the work moves, `check_item` as each criterion passes, and `add_comment`
+on every decision/blocker. If you discover a dependency,
+`link_issues("AGX-12", "AGX-9", "blocks")`.
 
 ---
 
@@ -51,7 +57,10 @@ set_task_spec("AGX-31",
 add_checklist_item("AGX-31", "Bench records p50/p95 first-request latency")
 add_checklist_item("AGX-31", "Runbook documents how to read the cold-start number")
 ```
-Full field-by-field guidance: `task-template.md`.
+Now it's ready to start: spec (relevantPaths + testCommand) is set and there are
+>=2 checklist criteria. Whoever picks it up moves it to `in_progress` before
+coding. Full field-by-field guidance: `task-template.md`; the two gates:
+`quality-gates.md`.
 
 ---
 
@@ -59,7 +68,7 @@ Full field-by-field guidance: `task-template.md`.
 
 ```
 get_started(project: "AGX")
-create_epic(project: "AGX", title: "Realtime updates", status: "in_progress")
+create_epic(project: "AGX", title: "Realtime updates")     # epic status is auto-derived — don't set it
 # one issue per coherent task, each with its own spec + criteria:
 create_issue(project: "AGX", title: "Add SSE endpoint for issue events", epicId: <epic>)
 set_task_spec(...); add_checklist_item(...)
@@ -67,6 +76,8 @@ create_issue(project: "AGX", title: "Client subscribes to issue stream", epicId:
 add_sub_issue("AGX-40", title: "Reconnect with backoff")   # split a piece off
 link_issues("AGX-41", "AGX-40", "blocks")                  # ordering
 ```
+The epic's status derives from its issues — as they move to `in_progress` /
+`done`, the epic rolls up automatically. You never `move_issue` an epic by hand.
 Optionally write a plan doc and link it:
 ```
 create_document(title: "Realtime updates — plan", type: "plan", project: "AGX",
