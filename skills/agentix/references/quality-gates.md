@@ -17,8 +17,8 @@ an under-specced issue costs the next agent (maybe you) a grep safari.
 - [ ] **For a code task: spec is set** — `set_task_spec` with `relevantPaths`
       (files/dirs to touch) **and** `testCommand` (how to verify). Mandatory; no
       spec = not ready to start.
-- [ ] **At least 2 checklist criteria**, each a checkable, testable outcome — not
-      a prose blob in the description.
+- [ ] **At least 2 checklist criteria** (`add_checklist_item`), each a checkable,
+      testable outcome — not a prose blob in the description.
 - [ ] Right `project`; reusing an existing `epic` / `milestone` / labels where
       they fit.
 

@@ -48,6 +48,7 @@ add_checklist_item(issue, "Bench shows lower p50 for repeat get_context calls")
 - **spec (`set_task_spec`)** — the Agentix superpower. `relevantPaths` = the files/dirs to touch; `testCommand` = how to verify. This is what lets an agent start in seconds instead of grepping. **A spec (relevantPaths + testCommand) is mandatory for any code task before it can move to `in_progress`** — no spec, not ready to start.
 - **acceptance criteria (`add_checklist_item`)** — one checkable item per criterion, phrased as a testable outcome. **Not** a prose paragraph in the description. The next agent ticks them with `check_item` as it goes; that *is* the definition of done.
 - **placement** — `epicId` for a theme of work, `milestone` for a dated deliverable, `parent`/`add_sub_issue` for a piece of a bigger issue.
+- **labels** — `labelIds` (UUID array) on `create_issue` to tag the work; reuse existing labels rather than spawning near-duplicates.
 
 ## Granularity ladder
 
@@ -68,13 +69,33 @@ sub-issue   <   issue   <   epic   <   milestone
 - `link_issues(A, B, "blocks")` — A blocks B (B shows `blocked_by A`).
 - `link_issues(A, B, "relates")` — related, no ordering.
 - `link_issues(A, B, "duplicates")` — A duplicates B; prefer this + a comment over filing the same work twice.
+- `unlink_issues(relationId)` — undo a wrong link. The `relationId` comes from `get_issue`'s `relations` array, not the issue key.
+
+## Cleaning up mistakes
+
+Prefer leaving a trail over erasing it. Two correction paths:
+
+- **Cancel (reversible, keeps history).** `move_issue(issue, "canceled")` is the
+  default when an issue was real but won't ship — superseded work, scope cut, or
+  a probe/spike that has answered its question. The issue and its comments stay
+  searchable.
+- **Delete (hard, not reversible).** `delete_issue(issue)` only for genuine
+  noise that should never have existed — an empty test issue, an accidental
+  double-create, a throwaway "does X work?" probe with nothing worth keeping.
+  It's a hard delete: comments, checklist, and relations go with it.
+
+Related hard deletes for mis-filed structure (all irreversible): `delete_epic`
+(detaches its issues, doesn't delete them), `delete_milestone` (detaches its
+issues), `delete_document`. When unsure, cancel or comment — you can't undo a
+delete.
 
 ## Status lifecycle
 
-Agentix issues move through four statuses. Move them as the work actually
-progresses — never leave active work parked in `todo` / `backlog`.
+Agentix issues move through six statuses: `backlog`, `todo`, `in_progress`,
+`in_review`, `done`, `canceled`. Move them as the work actually progresses —
+never leave active work parked in `todo` / `backlog`.
 
-- **`todo` / `backlog`** — filed and specced, nobody working it yet.
+- **`backlog` / `todo`** — filed and specced, nobody working it yet.
 - **`in_progress`** — `move_issue(issue, "in_progress")` *before* you write any
   code. Starting work without flipping the status is the #1 way two agents
   collide on the same issue.
@@ -82,6 +103,9 @@ progresses — never leave active work parked in `todo` / `backlog`.
   change is up for review. Reference the PR or commit in a comment.
 - **`done`** — only when **every** checklist item is checked and you've left a
   summary comment.
+- **`canceled`** — `move_issue(issue, "canceled")` for work that was filed but
+  won't be done (superseded, out of scope, a probe that answered its question).
+  Cancel keeps the audit trail; deletion erases it (see *Cleaning up mistakes*).
 
 **Epic status is auto-derived from its issues — never set it by hand.**
 

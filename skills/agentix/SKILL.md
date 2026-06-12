@@ -1,6 +1,7 @@
 ---
 name: agentix
-description: Work the Agentix issue tracker — an agent-native, Linear-style tracker (projects, epics, issues, milestones, checklists, wiki) reached over a REMOTE, hosted MCP server named `agentix` (REST mirror at `/api/*`). Use whenever the agentix MCP tools are present (get_started, get_context, create_issue, search, create_document, set_task_spec…), OR the user mentions Agentix / "the tracker" / "заведи/создай задачу" / "create an issue/task" / "log work" / planning epics/milestones / the wiki/index/"оглавление", OR asks to write, file, sync, or push tasks, specs, backlog, epics, context, or docs INTO Agentix — even from a different project or repo. Agentix is a running service you connect to over MCP — if a local agentix repo exists, that is the source code, NOT how you use it (never run it locally). Teaches: how to find the URL+token (incl. keys-keeper) and connect, the orientation workflow (get_started → index → get_context), the task template (title + spec + checklist), and the index convention. NOT for GitHub Issues, Jira, or the hosted Linear MCP.
+description: >-
+  Work the Agentix issue tracker — an agent-native, Linear-style tracker (projects, epics, issues, milestones, checklists, wiki) reached over a REMOTE, hosted MCP server named `agentix` (REST mirror at `/api/*`). Use whenever the agentix MCP tools are present (get_started, get_context, create_issue, search, create_document, set_task_spec…), OR the user mentions Agentix / "the tracker" / "заведи/создай задачу" / "create an issue/task" / "log work" / planning epics/milestones / the wiki/index/"оглавление", OR asks to write, file, sync, or push tasks, specs, backlog, epics, context, or docs INTO Agentix — even from another project or repo. Agentix is a running service you connect to over MCP; a local agentix repo is the source code, NOT how you use it (never run it locally). Teaches finding the URL+token (incl. keys-keeper) and connecting, the orient workflow (get_started → index → get_context), the task template, and the index convention. NOT for GitHub Issues, Jira, or the hosted Linear MCP.
 metadata:
   short-description: Work the Agentix agent-native issue tracker over MCP
   version: "0.1"
@@ -10,6 +11,16 @@ metadata:
 
 Agentix is an **agent-native issue tracker** — projects → epics → issues → milestones, plus checklists, relations, and a wiki — exposed over an MCP server named `agentix` (REST mirror at `/api/*`). This skill tells you how to work it efficiently: orient cheaply, work one issue at a time, and file issues another agent can pick up without you.
 
+## Fast path (you're already connected)
+
+If `get_started`/`get_context` tools are present, skip the connect section:
+
+1. `get_started` (add `project` to focus) → read its `brief`; that embeds the workspace + project index.
+2. `get_context(issue)` → ONE call: description, spec, checklist, linked docs, sub-issues, relations, activity.
+3. Work it: `move_issue(issue, "in_progress")` before code → `check_item` each criterion → `add_comment` decisions → `move_issue(issue, "done")` when every item is checked.
+
+Everything below is the detailed version. Read on only for the parts you need.
+
 ## The one rule that protects your context
 
 **Don't read everything.** Call `get_started` first, then pull only what the task needs (`get_context`, `search`, targeted `list_*`). Reading the whole wiki "to understand the project" is the exact failure mode this skill exists to prevent — it burns your context before you've done any work.
@@ -18,18 +29,38 @@ Agentix is an **agent-native issue tracker** — projects → epics → issues �
 
 Agentix runs as a hosted/self-hosted server; you **use** it over MCP, you don't stand it up. **If an `agentix` repo exists on disk, that's the source code — it is NOT how you connect. Never `npm run dev` / spin up the local app to "use the tracker."** Working with Agentix from another project is normal — the tracker is remote.
 
-1. **Check first.** Try `get_started` (or `whoami`). If it works, you're connected — skip to the work cycle.
-2. **No agentix tools? The MCP just isn't registered yet.** Find the server URL + an API token:
-   - If the user uses **keys-keeper**, it's almost certainly stored there. Look: `keys list --search agentix`. Get the URL from `keys info agentix-mcp` (or `agentix`), and load the token without exposing it: `keys inject agentix-mcp --file /tmp/agx.env --as AGT` (then `source` it). Don't paste tokens into chat.
-   - Otherwise ask the human for the Agentix URL + a token (they mint one: Settings → Members → create an agent, then Settings → API tokens — shown once).
-3. **Register it** (user scope = available in every project):
-   ```
-   claude mcp add --scope user --transport http agentix https://YOUR_DOMAIN/api/mcp \
-     --header "Authorization: Bearer <TOKEN>"
-   ```
-   MCP servers load at session start, so **reload/restart the session** after adding. Confirm with `whoami` → `{ name, kind: "agent", role }`.
+**Decision tree:**
 
-Until the MCP is connected you can also drive Agentix over its **REST API** with the same token (`GET /api/started`, `POST /api/issues`, …) — see `references/tools.md`.
+1. **Try `get_started` (or `whoami`) first.** If it returns, you're connected — go to the work cycle. Done.
+2. **No agentix tools? You can't fix this for yourself mid-session.** MCP servers load at session start, so even after you register one, *this* agent won't see it without a reload — and reloading kills the agent doing the work. So pick one:
+   - **(a) Finish over the REST mirror now.** The same token drives `https://YOUR_DOMAIN/api/*` with the *same* refs and field names as MCP (no reload needed). This is the in-session escape hatch — see "Driving over REST" below and `references/tools.md`.
+   - **(b) Hand off the MCP setup and stop.** Register it for future sessions (command below), tell the human to reload/restart, and stop here — don't pretend you're connected.
+
+**Finding the URL + token** (needed for either path). With **keys-keeper**, these live in separate entries — don't confuse them:
+- **`agentix-mcp`** = the **Bearer API token** ("Claude agent/member token for the global agentix MCP connection"). This is the value for `Authorization: Bearer …`. Load it without printing it: `keys inject agentix-mcp --file /tmp/agx.env --as AGT` then `source`. **Do not paste tokens into chat.**
+- **`agentix-prod`** = a **`DATABASE_URL`** / deploy-and-ops bundle (Dokploy IDs, internal Postgres host). It is **NEVER a bearer token** — sending it as one will fail. It is, however, where the MCP **URL** lives (`mcp_url` / `app_url` + `/api/mcp`); the token still comes from `agentix-mcp`.
+- **`agentix`** = a generic url+token API record. Usable as the API connection record.
+
+If keys-keeper has nothing, ask the human for the URL + a token (they mint one: Settings → Members → create an agent, then Settings → API tokens — shown once).
+
+**Register for future sessions** (user scope = available in every project):
+```
+claude mcp add --scope user --transport http agentix https://YOUR_DOMAIN/api/mcp \
+  --header "Authorization: Bearer <TOKEN>"
+```
+After the human reloads, `whoami` should return `{ name, kind: "agent", role }`.
+
+## Driving over REST (in-session fallback)
+
+Since the REST surface became a true mirror of the MCP adapter, you can do the whole job over HTTP with the same Bearer token — useful when MCP isn't loaded and you can't reload:
+
+- **Same refs everywhere** — a UUID **or** a display key (`AGX`, `AGX-12`, a milestone name) works on every ref field, not just UUIDs.
+- **Same agent field names** — `description`/`descriptionMd`, `content`/`contentMd`, `body`/`bodyMd`, `project`/`projectId`, `issue`/`issueId`, `parent`/`parentId`, `assignee`/`assigneeId`, `lead`/`leadId`, `milestone`/`milestoneId` all work in REST bodies, same as MCP.
+- **Typos fail loudly** — bodies are strict: an unknown/misspelled field returns **400** with `{ error: { code, message } }` instead of silently dropping (the old silent-field-drop trap is gone). Unknown paths return a JSON **404**, not HTML.
+- **A few shapes have no dedicated verb** — *moving* an issue is `PATCH /api/issues/:ref {"status":"in_progress"}`; spec is `PATCH /api/issues/:ref/spec`; tick an item is `PATCH /api/checklist/:itemId {"done":true}`.
+- **Health** — `GET /api/health` is unauthenticated (`{ ok: true }`, or 503 if Postgres is down). `GET /api/started?project=<ref>` is the REST `get_started`.
+
+Full verb/path mapping per tool: **`references/tools.md`**.
 
 ## The work cycle (follow it every time)
 
@@ -79,7 +110,7 @@ Full template, field-by-field, with the Linear-derived best practices adapted to
 - `get_context(issue)` to load everything. Work from its `brief`.
 - `check_item(itemId, true)` as you satisfy each acceptance criterion.
 - `add_comment` for decisions, blockers, and "what I did" — that's the audit trail other agents and humans read.
-- Found a dependency? `link_issues(issue, target, "blocks" | "relates" | "duplicates")`.
+- Found a dependency? `link_issues(issue, target, "blocks" | "relates" | "duplicates")`. Linked the wrong pair? `unlink_issues(relationId)` (the relationId comes from `get_issue`).
 
 ### Status lifecycle (don't skip a step)
 
@@ -93,6 +124,10 @@ As you go: `check_item` each criterion the moment it's true, and `add_comment` e
 
 Both gates spelled out as checklists: **`references/quality-gates.md`**.
 
+## Cleaning up (delete tools)
+
+Agentix has destructive tools for genuinely mis-filed work — an empty probe issue, a stale doc, a throwaway milestone: `delete_issue`, `delete_document`, `delete_epic`, `delete_milestone`, `delete_project`, `delete_checklist_item`, plus `unlink_issues`. These are **hard deletes** (not reversible; `delete_epic`/`delete_milestone` detach issues rather than delete them). For real work that turned out redundant, prefer a `duplicates` link + comment over deletion — the trail is more useful. Signatures for all of them: **`references/tools.md`**.
+
 ## Search & navigate (instead of reading everything)
 
 - `search("query")` — ranked full-text over issues **and** documents. Your default for "is there already…?".
@@ -103,14 +138,14 @@ Both gates spelled out as checklists: **`references/quality-gates.md`**.
 
 ## Tool reference
 
-All 36 MCP tools, grouped, with parameters and what they return: **`references/tools.md`**.
+All 43 MCP tools — including the `delete_*`/`unlink_issues` cleanup tools — grouped, with parameters, return shapes, and the REST verb/path for each: **`references/tools.md`**.
 
 ## Common workflows
 
-Step-by-step recipes (take an assigned issue, file a well-specced issue, plan an epic, bootstrap/refresh the index): **`references/workflows.md`**.
+Step-by-step recipes (take an assigned issue, file a well-specced issue, plan an epic, bootstrap/refresh the index, clean up a mistake): **`references/workflows.md`**.
 
 See also:
-- `references/tools.md` — every MCP tool with signatures and return shapes.
+- `references/tools.md` — every MCP tool with signatures, return shapes, and REST equivalents.
 - `references/task-template.md` — the issue-creation template + best practices (search-before-create, spec, checklist, granularity ladder).
 - `references/quality-gates.md` — the two checklists: ready-to-start (move to in_progress) and ready-for-done.
 - `references/index-convention.md` — the global + per-project index convention, templates, and when to update.

@@ -45,6 +45,12 @@ Keep it short. The index is a map, not the territory — link out (`[[slug]]`,
 `[[AGX-12]]`) instead of inlining content. If a section grows long, it wants to
 be its own doc that the index links to.
 
+Those `[[..]]` links form a graph the server reads: `get_context(issue)` pulls
+in the wiki docs that link an issue, and `get_backlinks(issue)` lists the docs
+that point at it. So linking the index (and other docs) to the issues and docs
+they describe isn't just for humans — it's what feeds an agent the right context
+on the next `get_context` call.
+
 ## Bootstrapping
 
 If `get_started` reports an index missing, create it from the returned template:
@@ -59,8 +65,12 @@ create_document(title: "<Name> (AGX) — Index", slug: "index", type: "context_m
                 project: "AGX", content: <focus.indexTemplate>)
 ```
 
-Then fill in the real values. Update with `update_document` (it snapshots a
-version on every change, so edits are safe).
+Then fill in the real values. Update with `update_document` (it snapshots a new
+version whenever the content or title changes, so edits are safe to make and
+easy to roll back). The index's `slug` is `index` by convention — keep it.
+`update_document` *can* now change a slug (it re-uniques the new slug and
+re-syncs every `[[slug]]` link that pointed at the doc), but there's no reason
+to rename the index, so leave its slug alone.
 
 ## Template — global index
 

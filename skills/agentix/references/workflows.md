@@ -1,9 +1,10 @@
 # Common Agentix workflows
 
-End-to-end recipes for the tasks agents do most. Each assumes you've connected
-and can call the `agentix` MCP tools. The golden rule runs through all of them:
-**orient with `get_started`, pull specifics with `get_context` / `search`, don't
-read the whole wiki.**
+End-to-end recipes for the tasks agents do most. Recipes 0–6 assume the `agentix`
+MCP tools are loaded; recipe 7 is the **REST/curl fallback** for when they are
+not (and you can't reload the session mid-task). The golden rule runs through all
+of them: **orient with `get_started`, pull specifics with `get_context` /
+`search`, don't read the whole wiki.**
 
 ---
 
@@ -38,7 +39,10 @@ mark_read()                        # clear the inbox notifications
 Work from `get_context`'s `brief`; don't reconstruct context by hand. Move the
 status as the work moves, `check_item` as each criterion passes, and `add_comment`
 on every decision/blocker. If you discover a dependency,
-`link_issues("AGX-12", "AGX-9", "blocks")`.
+`link_issues("AGX-12", "AGX-9", "blocks")`. Linked the wrong pair? Read the
+relation's id from `get_issue("AGX-12")` (its `relations[]`), then
+`unlink_issues(<relationId>)`. To drop a checklist criterion that no longer
+applies, `delete_checklist_item(<itemId>)`.
 
 ---
 
@@ -125,3 +129,75 @@ search("<topic>")                 # pull specific issues/docs
 ```
 Answer from these targeted calls — resist `get_document` on everything. The
 index + `search` tell you which few docs are actually worth opening.
+
+---
+
+## 7. No MCP tools loaded — drive Agentix over REST
+
+If `get_started` / `whoami` aren't callable, the `agentix` MCP didn't load. You
+**cannot** reload the session mid-task without killing this agent — so don't try.
+Instead drive the same service over its REST mirror with `curl`. Every write runs
+through the *same* normalizer as MCP, so refs accept a UUID **or** display key
+(`AGX`, `AGX-12`, a milestone name) and bodies accept the agent aliases
+(`description`, `content`, `body`, `project`, `assignee`, `milestone`, …). Unknown
+or mistyped fields are rejected `400`, not silently dropped.
+
+Get the Bearer token from keys-keeper `agentix-mcp` (NOT `agentix-prod` — that's a
+`DATABASE_URL`, never a bearer). The base URL is `https://agentix.moone.dev`.
+
+```bash
+BASE=https://agentix.moone.dev
+TOKEN=$(keys get agentix-mcp)            # the MCP/REST bearer; never agentix-prod
+H="-H Authorization:Bearer\ $TOKEN -H Content-Type:application/json"
+
+curl -s $BASE/api/health                 # unauthenticated readiness probe ({ok:true})
+curl -s $H "$BASE/api/docs"              # self-describing endpoint map + conventions
+curl -s $H "$BASE/api/started?project=AGX"   # == get_started; read the brief
+
+# orient on one issue (the REST mirror of get_context):
+curl -s $H "$BASE/api/context?issue=AGX-12"   # issue + linked wiki + brief
+curl -s $H "$BASE/api/issues/AGX-12"          # or the raw issue alone
+
+# work the lifecycle — there's no move/assign verb; PATCH the field:
+curl -s $H -X PATCH "$BASE/api/issues/AGX-12" -d '{"status":"in_progress"}'
+curl -s $H -X PATCH "$BASE/api/issues/AGX-12/spec" \
+     -d '{"relevantPaths":["lib/"],"testCommand":"npm test"}'
+curl -s $H -X POST  "$BASE/api/issues/AGX-12/checklist" -d '{"content":"Tests green"}'
+curl -s $H -X PATCH "$BASE/api/checklist/<itemId>" -d '{"done":true}'
+curl -s $H -X POST  "$BASE/api/issues/AGX-12/comments" -d '{"body":"Decision: …"}'
+curl -s $H -X PATCH "$BASE/api/issues/AGX-12" -d '{"status":"in_review"}'
+
+# file a new issue with alias body (project key + description alias):
+curl -s $H -X POST "$BASE/api/issues" \
+     -d '{"project":"AGX","title":"…","description":"…","priority":"medium"}'
+```
+Start every REST session at `GET /api/docs` — it hands you the full verb/path map
+and the alias/ref conventions, so you don't have to guess. Hitting an unknown path
+returns a JSON `404` (`{error:{code:"not_found",…}}`), not Next's HTML.
+
+---
+
+## 8. Clean up mis-filed work (the delete / unlink surface)
+
+Creation is reversible. When something was filed wrong — an empty test issue, a
+duplicate, a stale doc, an abandoned epic or milestone — prefer fixing it over
+leaving the board dishonest. **Hard deletes are irreversible**, so confirm intent
+and reach for a status (`canceled`) or a `duplicates` link first when the record
+still carries history worth keeping.
+
+```
+delete_issue("AGX-99")              # empty/duplicate issue — hard delete, gone for good
+delete_epic(<epicId>)               # epicId is UUID-only; issues are DETACHED, not deleted
+delete_milestone("Q3 launch")       # by UUID or name; issues are detached
+delete_document(<uuid-or-slug>)     # stale wiki/plan doc — irreversible
+delete_project("OLD")               # hard delete — CASCADES all contents; last resort
+unlink_issues(<relationId>)         # remove a wrong relation (id from get_issue's relations)
+delete_checklist_item(<itemId>)     # drop a criterion that no longer applies
+```
+Picking the id: `delete_epic` / `update_epic`, `update_milestone`, `check_item`,
+`delete_checklist_item`, and `unlink_issues` all take a **UUID** (or, for
+milestones, a name) — get it from `get_issue` (relations, checklist items),
+`list_epics`, or `list_milestones`. Over REST the same surface is `DELETE
+/api/issues/:ref`, `DELETE /api/epics/:id`, `DELETE /api/milestones/:id`, `DELETE
+/api/documents/:ref`, `DELETE /api/projects/:ref`, `DELETE
+/api/issues/:ref/relations/:id`, and `DELETE /api/checklist/:id`.
