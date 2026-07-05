@@ -27,7 +27,7 @@ to its internal schema field — both the alias and the internal name work:
 
 | Tool | Params | Returns |
 |------|--------|---------|
-| `list_projects` | `status?: "active"\|"archived"` | Projects with `openIssueCount`/`issueCount`. |
+| `list_projects` | `status?: "active"\|"archived"`, `limit?` (1–200, default 100), `offset?` (≥0) | Projects with `openIssueCount`/`issueCount`. |
 | `get_project` | `project` (ref) | One project (id, key, name, description, lead, color, counts). |
 | `create_project` | `key` (uppercased), `name`, `description?` (alias→descriptionMd), `lead?` (alias→leadId; UUID/email/name), `color?` | Created project. `key` is the uppercase prefix used in issue keys (e.g. `AGX` → `AGX-1`). |
 | `update_project` | `project` (ref), `name?`, `description?` (alias), `status?: "active"\|"archived"`, `color?` | Updated project. |
@@ -62,14 +62,14 @@ to its internal schema field — both the alias and the internal name work:
 
 | Tool | Params | Returns |
 |------|--------|---------|
-| `list_comments` | `issue` (ref) | All comments with author + timestamp (markdown bodies). |
+| `list_comments` | `issue` (ref), `limit?` (1–500, default 200) | All comments with author + timestamp (markdown bodies). |
 | `add_comment` | `issue` (ref), `body` (alias→bodyMd; markdown) | Posts a markdown comment. Use real newlines, not `\n`. |
 
 ## Documents — wiki: plans, memory, context maps, notes (6)
 
 | Tool | Params | Returns |
 |------|--------|---------|
-| `list_documents` | `project?` (ref), `type?: "plan"\|"memory"\|"context_map"\|"note"`, `query?` | Documents (slug, type, createdBy, timestamps). |
+| `list_documents` | `project?` (ref), `type?: "plan"\|"memory"\|"context_map"\|"note"`, `query?`, `limit?` (1–500, default 200) | Documents (slug, type, createdBy, timestamps). |
 | `get_document` | `document` (UUID or slug) | Full document with markdown body. |
 | `create_document` | `title`, `content?` (alias→contentMd), `type?` (enum), `project?` (ref→alias), `issue?` (ref→alias issueId), `slug?` | Created document (auto-slugged, unique per project). |
 | `update_document` | `document` (UUID/slug), `title?`, `content?` (alias), `type?` (enum), `slug?` | Updated document; `slug` is re-uniqued and links re-synced on change. A version snapshot is taken when content/title changes. |
