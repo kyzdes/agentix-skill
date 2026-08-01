@@ -1,7 +1,5 @@
-# Lightweight CI: verify the plugin manifest + every SKILL.md is well-formed.
-# Tech-lead note (2026-05-15): markdown-only plugins have no test suite, but a
-# typo in plugin.json or missing frontmatter would silently break installs for
-# friends. This guard catches such cases at push time.
+# Lightweight package validation. It does not prove compatibility with a live
+# Agentix deployment; MCP schemas and GET /api/docs remain runtime truth.
 
 name: validate-plugin
 
@@ -11,9 +9,13 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+
 jobs:
   validate:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
 
@@ -32,6 +34,48 @@ jobs:
               sys.exit(f"error: {p} missing required `name` field")
           print(f"ok: plugin.json valid (name={data['name']!r})")
           PY
+
+      - name: hooks and shell scripts must be valid
+        run: |
+          python3 - <<'PY'
+          import json, pathlib, sys
+          path = pathlib.Path('hooks/hooks.json')
+          try:
+              data = json.loads(path.read_text(encoding='utf-8'))
+          except (OSError, json.JSONDecodeError) as ex:
+              sys.exit(f"error: invalid {path}: {ex}")
+          hooks = data.get('hooks', {}).get('SessionStart', [])
+          if not hooks:
+              sys.exit('error: SessionStart hook missing')
+          print('ok: hooks.json valid')
+          PY
+          bash -n scripts/auto-update.sh
+          test -x scripts/auto-update.sh
+
+      - name: update hook is opt-in and debounced
+        run: |
+          test_home="$(mktemp -d)"
+          trap 'rm -rf "$test_home"' EXIT
+          mkdir -p "$test_home/bin" "$test_home/.claude/plugins"
+          printf '%s\n' '{"plugins":{"agentix@claude-skills":{},"other@claude-skills":{}}}' > "$test_home/.claude/plugins/installed_plugins.json"
+          cat > "$test_home/bin/claude" <<'SH'
+          #!/usr/bin/env bash
+          printf '%s\n' "$*" >> "$HOME/claude-calls"
+          SH
+          chmod +x "$test_home/bin/claude"
+
+          HOME="$test_home" PATH="$test_home/bin:$PATH" scripts/auto-update.sh
+          test ! -e "$test_home/claude-calls"
+
+          HOME="$test_home" PATH="$test_home/bin:$PATH" \
+            AGENTIX_PLUGIN_AUTO_UPDATE=1 scripts/auto-update.sh
+          HOME="$test_home" PATH="$test_home/bin:$PATH" \
+            AGENTIX_PLUGIN_AUTO_UPDATE=1 scripts/auto-update.sh
+          test "$(wc -l < "$test_home/claude-calls")" -eq 2
+          test "$(sed -n '1p' "$test_home/claude-calls")" = "plugin marketplace update claude-skills"
+          test "$(sed -n '2p' "$test_home/claude-calls")" = "plugin update agentix@claude-skills"
+          ! grep -q 'other@claude-skills' "$test_home/claude-calls"
+          test "$(wc -c < "$test_home/.cache/agentix-plugin/update.log")" -le 65536
 
       - name: every skills/*/SKILL.md must have name + description frontmatter
         run: |
