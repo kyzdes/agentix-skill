@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.2"
+  version: "0.2.0"
 ---
 
 # Agentix
@@ -34,7 +34,7 @@ For the current session, REST is the fallback. Read unauthenticated `GET https:/
 ## Work cycle
 
 1. `get_started(project?)`: read the returned brief, project catalogue, conventions, and index status.
-2. `search(query)` before creating anything; reuse an existing issue, epic, milestone, label, or document when appropriate.
+2. Before creating anything, use `search(query)` for existing issues and documents, `list_epics` for epics, and `list_milestones` for milestones. MCP has no label tools; inspect or manage labels only through an authorized REST or web workflow.
 3. `get_context(issue)` to load one runnable brief. Use narrower `get_*`/`list_*` calls only for missing exact values.
 4. For a code task, ensure intent, relevant paths, a verification command, and checkable acceptance criteria are present. Use `set_task_spec` and `add_checklist_item`.
 5. Move the issue to `in_progress` immediately before beginning work. Keep decisions and blockers in `add_comment`; tick criteria as they become true.

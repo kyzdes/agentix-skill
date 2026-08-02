@@ -1,5 +1,6 @@
 {
   "name": "agentix",
+  "version": "0.2.0",
   "description": "Teach AI agents to work safely and efficiently with a remote Agentix tracker over MCP, with REST fallback and live-contract discovery.",
   "author": {
     "name": "kyzdes"
