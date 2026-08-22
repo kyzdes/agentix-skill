@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.3.0"
+  version: "0.3.1"
 ---
 
 # Agentix
