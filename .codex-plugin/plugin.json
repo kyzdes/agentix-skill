@@ -1,0 +1,28 @@
+{
+  "name": "agentix",
+  "version": "0.3.0",
+  "description": "Teach AI agents to work safely and efficiently with a remote Agentix tracker over MCP, with REST fallback and live-contract discovery.",
+  "author": {
+    "name": "kyzdes",
+    "url": "https://github.com/kyzdes"
+  },
+  "homepage": "https://agentix.moone.dev/api/docs",
+  "repository": "https://github.com/kyzdes/agentix-skill",
+  "keywords": ["agentix", "mcp", "project-management", "issue-tracking"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Agentix",
+    "shortDescription": "Operate Agentix work over MCP",
+    "longDescription": "Safely plan, execute, and document Agentix work through its live MCP and REST contracts.",
+    "developerName": "kyzdes",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://agentix.moone.dev",
+    "defaultPrompt": [
+      "Use Agentix to plan and create a runnable task.",
+      "Review this Agentix issue and update its acceptance criteria.",
+      "Load the relevant Agentix context before starting this work."
+    ],
+    "brandColor": "#5E6AD2"
+  }
+}

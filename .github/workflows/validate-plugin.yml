@@ -1,5 +1,4 @@
-# Lightweight package validation. It does not prove compatibility with a live
-# Agentix deployment; MCP schemas and GET /api/docs remain runtime truth.
+# Package validation for the shared Claude Code and Codex Agentix skill.
 
 name: validate-plugin
 
@@ -8,6 +7,9 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  schedule:
+    - cron: "17 4 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +21,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: plugin.json must be valid and versioned
+      - name: Claude plugin.json must be valid and versioned
         run: |
           python3 - <<'PY'
           import json, re, sys, pathlib
@@ -57,28 +59,53 @@ jobs:
 
       - name: update hook is opt-in and debounced
         run: |
-          test_home="$(mktemp -d)"
-          trap 'rm -rf "$test_home"' EXIT
-          mkdir -p "$test_home/bin" "$test_home/.claude/plugins"
-          printf '%s\n' '{"plugins":{"agentix@claude-skills":{},"other@claude-skills":{}}}' > "$test_home/.claude/plugins/installed_plugins.json"
-          cat > "$test_home/bin/claude" <<'SH'
+          test_root="$(mktemp -d)"
+          trap 'rm -rf "$test_root"' EXIT
+          mkdir -p "$test_root/bin" "$test_root/claude/plugins" "$test_root/codex-data"
+          printf '%s\n' '{"plugins":{"agentix@claude-skills":{},"other@claude-skills":{}}}' > "$test_root/claude/plugins/installed_plugins.json"
+          cat > "$test_root/bin/claude" <<'SH'
           #!/usr/bin/env bash
-          printf '%s\n' "$*" >> "$HOME/claude-calls"
+          printf '%s\n' "$*" >> "$AGENTIX_TEST_CALLS_PATH"
           SH
-          chmod +x "$test_home/bin/claude"
+          cat > "$test_root/bin/codex" <<'SH'
+          #!/usr/bin/env bash
+          printf '%s\n' "$*" >> "$AGENTIX_TEST_CALLS_PATH"
+          SH
+          chmod +x "$test_root/bin/claude" "$test_root/bin/codex"
 
-          HOME="$test_home" PATH="$test_home/bin:$PATH" scripts/auto-update.sh
-          test ! -e "$test_home/claude-calls"
+          PATH="$test_root/bin:$PATH" \
+            AGENTIX_PLUGIN_CACHE_ROOT="$test_root/claude-cache" \
+            AGENTIX_PLUGIN_CLAUDE_INSTALL_JSON="$test_root/claude/plugins/installed_plugins.json" \
+            AGENTIX_TEST_CALLS_PATH="$test_root/claude-calls" \
+            scripts/auto-update.sh
+          test ! -e "$test_root/claude-calls"
 
-          HOME="$test_home" PATH="$test_home/bin:$PATH" \
-            AGENTIX_PLUGIN_AUTO_UPDATE=1 scripts/auto-update.sh
-          HOME="$test_home" PATH="$test_home/bin:$PATH" \
-            AGENTIX_PLUGIN_AUTO_UPDATE=1 scripts/auto-update.sh
-          test "$(wc -l < "$test_home/claude-calls")" -eq 2
-          test "$(sed -n '1p' "$test_home/claude-calls")" = "plugin marketplace update claude-skills"
-          test "$(sed -n '2p' "$test_home/claude-calls")" = "plugin update agentix@claude-skills"
-          ! grep -q 'other@claude-skills' "$test_home/claude-calls"
-          test "$(wc -c < "$test_home/.cache/agentix-plugin/update.log")" -le 65536
+          PATH="$test_root/bin:$PATH" \
+            AGENTIX_PLUGIN_AUTO_UPDATE=1 \
+            AGENTIX_PLUGIN_CACHE_ROOT="$test_root/claude-cache" \
+            AGENTIX_PLUGIN_CLAUDE_INSTALL_JSON="$test_root/claude/plugins/installed_plugins.json" \
+            AGENTIX_TEST_CALLS_PATH="$test_root/claude-calls" \
+            scripts/auto-update.sh
+          PATH="$test_root/bin:$PATH" \
+            AGENTIX_PLUGIN_AUTO_UPDATE=1 \
+            AGENTIX_PLUGIN_CACHE_ROOT="$test_root/claude-cache" \
+            AGENTIX_PLUGIN_CLAUDE_INSTALL_JSON="$test_root/claude/plugins/installed_plugins.json" \
+            AGENTIX_TEST_CALLS_PATH="$test_root/claude-calls" \
+            scripts/auto-update.sh
+          test "$(wc -l < "$test_root/claude-calls")" -eq 2
+          test "$(sed -n '1p' "$test_root/claude-calls")" = "plugin marketplace update claude-skills"
+          test "$(sed -n '2p' "$test_root/claude-calls")" = "plugin update agentix@claude-skills"
+          ! grep -q 'other@claude-skills' "$test_root/claude-calls"
+          test "$(wc -c < "$test_root/claude-cache/update.log")" -le 65536
+
+          PATH="$test_root/bin:$PATH" \
+            PLUGIN_DATA="$test_root/codex-data" \
+            AGENTIX_PLUGIN_AUTO_UPDATE=1 \
+            AGENTIX_TEST_CALLS_PATH="$test_root/codex-calls" \
+            scripts/auto-update.sh
+          test "$(wc -l < "$test_root/codex-calls")" -eq 2
+          test "$(sed -n '1p' "$test_root/codex-calls")" = "plugin marketplace upgrade agentix"
+          test "$(sed -n '2p' "$test_root/codex-calls")" = "plugin add agentix@agentix"
 
       - name: skill frontmatter must be complete and version-aligned
         run: |
@@ -116,3 +143,12 @@ jobs:
           if failed:
               sys.exit(1)
           PY
+
+      - name: Package instructions must match the committed Agentix contract
+        run: python3 scripts/verify-contract.py
+
+      - name: Scheduled production contract probe
+        if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+        env:
+          AGENTIX_CONTRACT_MCP_TOKEN: ${{ secrets.AGENTIX_CONTRACT_MCP_TOKEN }}
+        run: python3 scripts/verify-contract.py --live
