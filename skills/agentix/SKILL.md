@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.2.0"
+  version: "0.3.0"
 ---
 
 # Agentix
@@ -24,9 +24,20 @@ Agentix is a remote issue tracker and Markdown knowledge store for humans and AI
 
 If `get_started` or `whoami` works, continue to the workflow. Otherwise obtain the base URL and token from the user's approved secret store without displaying the token, then configure the MCP server for a future/reloaded session. Tokens expire after 1–365 days (90 by default) and grant either read-only or read-and-write access; request only the capability and lifetime required by the task.
 
+For Claude Code, configure the server with the approved token mechanism for
+your environment:
+
 ```text
 claude mcp add --scope user --transport http agentix https://HOST/api/mcp \
   --header "Authorization: Bearer TOKEN"
+```
+
+For Codex, expose the token only in the environment that launches Codex (for
+example through an approved secret manager), then register its variable name —
+never the literal token:
+
+```text
+codex mcp add agentix --url https://HOST/api/mcp --bearer-token-env-var AGENTIX_MCP_TOKEN
 ```
 
 For the current session, REST is the fallback. Read unauthenticated `GET https://HOST/api/docs`, then authenticate supported calls with the same Bearer token. `GET /api/health` is public. Do not confuse an Agentix `DATABASE_URL` with an API token.
@@ -54,7 +65,7 @@ A useful issue has one coherent outcome:
 - For code: `set_task_spec(issue, relevantPaths, testCommand)`.
 - One checklist item per observable acceptance criterion; do not bury the definition of done in prose.
 
-Split a smaller piece with `add_sub_issue`; group a theme under an epic; use a milestone for a dated outcome. Epic status is derived from child issues and is not directly settable.
+Split a smaller piece with `add_sub_issue`; group a theme under an epic; use a milestone for a dated outcome. Epic status is derived from child issues and is not directly settable: no issues → planned; any issue open → in_progress; all closed, at least one done → completed; all closed, all canceled → canceled.
 
 ## References and data types
 
@@ -73,6 +84,7 @@ Core enums:
 | issue status | `backlog`, `todo`, `in_progress`, `in_review`, `done`, `canceled` |
 | issue priority | `none`, `low`, `medium`, `high`, `urgent` |
 | project status | `active`, `archived` |
+| epic status | `planned`, `in_progress`, `completed`, `canceled` |
 | milestone status | `planned`, `active`, `completed`, `canceled` |
 | relation | `blocks`, `relates`, `duplicates` |
 | document | `plan`, `memory`, `context_map`, `note` |
