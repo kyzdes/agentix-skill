@@ -299,7 +299,9 @@ def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None) 
         fail(f"live MCP catalogue returned HTTP {exc.code}")
     except URLError as exc:
         fail(f"live MCP catalogue request failed: {exc.reason}")
-    if raw.startswith("data:"):
+    # MCP transports commonly encode a JSON-RPC response as SSE.  Some emit
+    # only `data:` lines while others precede them with `event: message`.
+    if raw.lstrip().startswith(("data:", "event:", ":")):
         data_lines = [line[5:].strip() for line in raw.splitlines() if line.startswith("data:")]
         if not data_lines:
             fail("live MCP catalogue returned an empty SSE response")
@@ -323,6 +325,7 @@ def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None) 
         and tool["annotations"].get("readOnlyHint") is True
     ]
     require_equal(read_tools, contract["mcp"]["readTools"], "live MCP read-only tools")
+    print(f"ok: live MCP catalogue ({len(tools)} tools, {len(read_tools)} read-only)")
 
 
 def parse_args() -> argparse.Namespace:
