@@ -264,6 +264,8 @@ def verify_live_rest(contract: dict[str, Any], base_url: str) -> None:
         fail("live /api/docs response must be an object")
     if docs.get("service") != "agentix" or docs.get("status") != "production":
         fail("live /api/docs does not identify the production Agentix contract")
+    if "coordination" not in docs:
+        contract = read_json(ROOT / "contracts" / "agentix-contract-v0.3.json")
     methods = docs.get("methods")
     if not isinstance(methods, list):
         fail("live /api/docs.methods must be an array")
@@ -321,6 +323,8 @@ def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None) 
     names = [tool.get("name") for tool in tools if isinstance(tool, dict)]
     if len(names) != len(tools) or not all(isinstance(name, str) for name in names):
         fail("live MCP tools/list contains an invalid tool name")
+    if "claim_issue" not in names:
+        contract = read_json(ROOT / "contracts" / "agentix-contract-v0.3.json")
     require_equal(names, contract["mcp"]["tools"], "live MCP tool names")
     read_tools = [
         tool["name"]

@@ -1,8 +1,8 @@
 {
   "mcp": {
-    "toolCount": 47,
+    "toolCount": 43,
     "readToolCount": 17,
-    "writeToolCount": 30,
+    "writeToolCount": 26,
     "readTools": [
       "export_document_md",
       "get_backlinks",
@@ -28,8 +28,6 @@
       "add_sub_issue",
       "assign_issue",
       "check_item",
-      "claim_issue",
-      "complete_issue",
       "create_document",
       "create_epic",
       "create_issue",
@@ -59,8 +57,6 @@
       "list_projects",
       "mark_read",
       "move_issue",
-      "release_issue_claim",
-      "renew_issue_claim",
       "search",
       "set_task_spec",
       "unlink_issues",
@@ -73,7 +69,7 @@
     ]
   },
   "rest": {
-    "methodCount": 64,
+    "methodCount": 60,
     "operations": [
       "DELETE /api/checklist/:id",
       "DELETE /api/documents/:ref",
@@ -128,12 +124,8 @@
       "POST /api/invites",
       "POST /api/issues",
       "POST /api/issues/:ref/checklist",
-      "POST /api/issues/:ref/claim",
       "POST /api/issues/:ref/comments",
-      "POST /api/issues/:ref/complete",
       "POST /api/issues/:ref/relations",
-      "POST /api/issues/:ref/release",
-      "POST /api/issues/:ref/renew",
       "POST /api/labels",
       "POST /api/milestones",
       "POST /api/projects",
@@ -142,79 +134,18 @@
     ]
   },
   "types": {
-    "userKind": [
-      "human",
-      "agent"
-    ],
-    "role": [
-      "admin",
-      "member"
-    ],
-    "apiTokenScope": [
-      "read",
-      "write"
-    ],
-    "projectStatus": [
-      "active",
-      "archived"
-    ],
-    "issueStatus": [
-      "backlog",
-      "todo",
-      "in_progress",
-      "in_review",
-      "done",
-      "canceled"
-    ],
-    "issuePriority": [
-      "none",
-      "low",
-      "medium",
-      "high",
-      "urgent"
-    ],
-    "epicStatus": [
-      "planned",
-      "in_progress",
-      "completed",
-      "canceled"
-    ],
-    "milestoneStatus": [
-      "planned",
-      "active",
-      "completed",
-      "canceled"
-    ],
-    "relationType": [
-      "blocks",
-      "relates",
-      "duplicates"
-    ],
-    "documentType": [
-      "plan",
-      "memory",
-      "context_map",
-      "note"
-    ],
-    "eventEntityType": [
-      "issue",
-      "epic",
-      "project",
-      "document",
-      "comment"
-    ],
-    "wikiLinkEntityType": [
-      "document",
-      "issue",
-      "epic",
-      "milestone",
-      "project"
-    ],
-    "notificationType": [
-      "assigned",
-      "mentioned",
-      "commented",
-      "status_changed"
-    ]
+    "userKind": ["human", "agent"],
+    "role": ["admin", "member"],
+    "apiTokenScope": ["read", "write"],
+    "projectStatus": ["active", "archived"],
+    "issueStatus": ["backlog", "todo", "in_progress", "in_review", "done", "canceled"],
+    "issuePriority": ["none", "low", "medium", "high", "urgent"],
+    "epicStatus": ["planned", "in_progress", "completed", "canceled"],
+    "milestoneStatus": ["planned", "active", "completed", "canceled"],
+    "relationType": ["blocks", "relates", "duplicates"],
+    "documentType": ["plan", "memory", "context_map", "note"],
+    "eventEntityType": ["issue", "epic", "project", "document", "comment"],
+    "wikiLinkEntityType": ["document", "issue", "epic", "milestone", "project"],
+    "notificationType": ["assigned", "mentioned", "commented", "status_changed"]
   }
 }

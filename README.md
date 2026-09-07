@@ -19,7 +19,7 @@ contract is available at [Agentix API docs](https://agentix.moone.dev/api/docs).
 Install the versioned repository marketplace and plugin:
 
 ```text
-codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.3.2
+codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.4.0
 codex plugin add agentix@agentix
 ```
 

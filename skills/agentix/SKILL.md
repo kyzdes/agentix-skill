@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.3.2"
+  version: "0.4.0"
 ---
 
 # Agentix
@@ -47,12 +47,14 @@ For the current session, REST is the fallback. Read unauthenticated `GET https:/
 1. `get_started(project?)`: read the returned brief, project catalogue, conventions, and index status.
 2. Before creating anything, use `search(query)` for existing issues and documents, `list_epics` for epics, and `list_milestones` for milestones. MCP has no label tools; inspect or manage labels only through an authorized REST or web workflow.
 3. `get_context(issue)` to load one bounded context. For `formatVersion: 2`, read the structured sections: `brief` is only a heading. `maxChars` bounds the whole serialized response; `truncated` and `omitted` explicitly identify partial sections. Use `readMore`, entity UUIDs and paginated `get_*`/`list_*` readers to fetch only the missing information needed for the task. Never interpret a clipped or omitted field as absent. `get_started` v2 similarly bounds its map and catalogues to 24,000 characters. Older servers without `formatVersion` still return their legacy brief; their budget does not guarantee a bound on the entire response. Both formats are supported during rollout.
-4. For a code task, ensure intent, relevant paths, a verification command, and checkable acceptance criteria are present. Use `set_task_spec` and `add_checklist_item`.
-5. Move the issue to `in_progress` immediately before beginning work. Keep decisions and blockers in `add_comment`; tick criteria as they become true.
-6. Move reviewable work to `in_review` when it is actually ready for review. Move to `done` only after every criterion is satisfied and a summary names the verification performed and the resulting change.
-7. Keep `index` context-map documents short and current when project structure or durable knowledge changes.
+4. Discover coordination from `get_started.taskCoordinationVersion` and the live tool catalogue. On a server with `claim_issue`, acquire the issue, then reread `get_issue`: keep its `revision`, `specRevision`, and the returned `claimId`. A lease belongs to the exact token, not just the agent account. Renew with `renew_issue_claim` every 5 minutes (15-minute expiry). After expiry, reacquire with a new logical command key and reread before writing. Release with `release_issue_claim` when yielding the task.
+5. For a code task, ensure intent, relevant paths, a verification command and checkable criteria are present. Pass `expectedRevision` and `claimId` to task/spec/checklist mutations. Use the revision returned by each successful mutation for the next one. Document edits also require the revision actually read. A 409 means reread and reconcile; never blindly replace the expected revision and resubmit an old draft.
+6. Move to `in_progress` before beginning work. Keep decisions and blockers in `add_comment`; comments need no claim. Tick criteria as they become true. `in_review` is optional.
+7. On coordination-capable servers, finish with `complete_issue`: all criteria satisfied, current `expectedRevision` and `specRevision`, active `claimId`, summary, artifact references and verification result. Code verification must report the configured command, exit code 0 and actual observed results. Manual checks need details; `not_applicable` needs an explanation and cannot replace a configured command. Agentix checks completeness and records “agent reported”; it does not execute commands. The agent can close the task independently. Direct status changes to Done are rejected. Existing Done without reports is historical; do not invent evidence for it.
+8. Use a fresh `idempotencyKey` for each logical creation or task command, and reuse it for identical retries. REST uses `Idempotency-Key`. Results are retained for 24 hours per workspace, credential and operation. Changed payload with the same key returns 409; reread after an ambiguous result before starting a new logical command. Never use this mechanism for token issuance.
+9. Keep `index` context-map documents short and current when project structure or durable knowledge changes.
 
-These lifecycle steps are an operating convention, not a database-enforced state machine. If the user's workflow differs, follow the user's explicit instruction and leave a clear comment.
+During staged rollout, older servers have no coordination tools or `taskCoordinationVersion`. Use their existing task/spec/checklist tools, verify every criterion, leave the evidence in a comment and then move to Done. This is a legacy convention, not an immutable completion report. Do not call missing tools. Both legacy and v2 context responses remain supported. On the new service, claims, revisions and completion evidence are mandatory server rules; user workflow preferences can choose the optional review step but cannot bypass those rules.
 
 ## Creating runnable work
 
@@ -89,9 +91,9 @@ Core enums:
 | relation | `blocks`, `relates`, `duplicates` |
 | document | `plan`, `memory`, `context_map`, `note` |
 
-## MCP tool map (43)
+## MCP tool map (47; older servers: 43)
 
-Use the client-exposed schema for exact arguments and return data. Seventeen tools require `read`; the 26 mutating tools require `write`. A read-only credential can discover the full tool catalogue, but write calls return `forbidden` without changing state.
+Use the client-exposed schema for exact arguments and return data. Seventeen tools require `read`; the 30 mutating tools require `write`. A read-only credential can discover the full tool catalogue, but write calls return `forbidden` without changing state.
 
 | Area | Tools |
 |---|---|
@@ -99,6 +101,7 @@ Use the client-exposed schema for exact arguments and return data. Seventeen too
 | Projects | `list_projects`, `get_project`, `create_project`, `update_project`, `delete_project` |
 | Epics | `list_epics`, `create_epic`, `update_epic`, `delete_epic` |
 | Issues/relations | `list_issues`, `get_issue`, `create_issue`, `update_issue`, `move_issue`, `assign_issue`, `add_sub_issue`, `link_issues`, `unlink_issues`, `delete_issue` |
+| Coordination | `claim_issue`, `renew_issue_claim`, `release_issue_claim`, `complete_issue` |
 | Comments | `list_comments`, `add_comment` |
 | Documents | `list_documents`, `get_document`, `create_document`, `update_document`, `export_document_md`, `delete_document` |
 | Activity/inbox | `list_activity`, `get_inbox`, `mark_read` |
@@ -107,10 +110,11 @@ Use the client-exposed schema for exact arguments and return data. Seventeen too
 
 ## REST fallback
 
-REST and MCP share service rules and normalizers but are not identical verb-for-tool surfaces. Discover the current 60 REST method/path operations at public `GET /api/docs`. Common mappings are:
+REST and MCP share service rules and normalizers but are not identical verb-for-tool surfaces. Discover the current 64 REST method/path operations (60 on the compatible older service) at public `GET /api/docs`. Common mappings are:
 
 | Intent | REST method |
 |---|---|
+| Claim / renew / release / complete | `POST /api/issues/:ref/claim`, `POST /api/issues/:ref/renew`, `POST /api/issues/:ref/release`, `POST /api/issues/:ref/complete` |
 | Orient / context | `GET /api/started`, `GET /api/context?issue=AGX-12` |
 | Create / read / edit issue | `POST /api/issues`, `GET|PATCH /api/issues/:ref` |
 | Move / assign | `PATCH /api/issues/:ref` with `status` or `assignee` |
