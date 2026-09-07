@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.3.1"
+  version: "0.3.2"
 ---
 
 # Agentix
@@ -46,7 +46,7 @@ For the current session, REST is the fallback. Read unauthenticated `GET https:/
 
 1. `get_started(project?)`: read the returned brief, project catalogue, conventions, and index status.
 2. Before creating anything, use `search(query)` for existing issues and documents, `list_epics` for epics, and `list_milestones` for milestones. MCP has no label tools; inspect or manage labels only through an authorized REST or web workflow.
-3. `get_context(issue)` to load one runnable brief. Use narrower `get_*`/`list_*` calls only for missing exact values.
+3. `get_context(issue)` to load one bounded context. For `formatVersion: 2`, read the structured sections: `brief` is only a heading. `maxChars` bounds the whole serialized response; `truncated` and `omitted` explicitly identify partial sections. Use `readMore`, entity UUIDs and paginated `get_*`/`list_*` readers to fetch only the missing information needed for the task. Never interpret a clipped or omitted field as absent. `get_started` v2 similarly bounds its map and catalogues to 24,000 characters. Older servers without `formatVersion` still return their legacy brief; their budget does not guarantee a bound on the entire response. Both formats are supported during rollout.
 4. For a code task, ensure intent, relevant paths, a verification command, and checkable acceptance criteria are present. Use `set_task_spec` and `add_checklist_item`.
 5. Move the issue to `in_progress` immediately before beginning work. Keep decisions and blockers in `add_comment`; tick criteria as they become true.
 6. Move reviewable work to `in_review` when it is actually ready for review. Move to `done` only after every criterion is satisfied and a summary names the verification performed and the resulting change.

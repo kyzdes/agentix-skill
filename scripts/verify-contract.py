@@ -95,6 +95,11 @@ def require_equal(actual: list[str], expected: list[str], label: str) -> None:
 
 
 def static_skill_contract(contract: dict[str, Any]) -> None:
+    version = read_json(CLAUDE_MANIFEST_PATH)["version"]
+    readme = (ROOT / "README.md").read_text(encoding="utf-8")
+    install_refs = re.findall(r"--ref\s+(agentix--v[0-9.]+)", readme)
+    if install_refs != [f"agentix--v{version}"]:
+        fail("README install ref must match the packaged plugin version")
     skill = SKILL_PATH.read_text(encoding="utf-8")
     table = re.search(
         r"^\| Area \| Tools \|\n(?P<table>(?:^\|.*\|\n?)+)",
