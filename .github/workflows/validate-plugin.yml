@@ -147,6 +147,9 @@ jobs:
       - name: Package instructions must match the committed Agentix contract
         run: python3 scripts/verify-contract.py
 
+      - name: Current and legacy contracts must remain compatible
+        run: python3 -m unittest discover -s scripts -p 'test_*.py'
+
       - name: Scheduled production contract probe
         if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
         env:

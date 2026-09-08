@@ -73,7 +73,7 @@
     ]
   },
   "rest": {
-    "methodCount": 70,
+    "methodCount": 64,
     "operations": [
       "DELETE /api/checklist/:id",
       "DELETE /api/documents/:ref",
@@ -87,7 +87,6 @@
       "DELETE /api/tokens/:id",
       "DELETE /api/users/:id",
       "GET /api/activity",
-      "GET /api/beta/metrics",
       "GET /api/context",
       "GET /api/docs",
       "GET /api/documents",
@@ -107,7 +106,6 @@
       "GET /api/me",
       "GET /api/milestones",
       "GET /api/milestones/:id",
-      "GET /api/onboarding",
       "GET /api/projects",
       "GET /api/projects/:ref",
       "GET /api/search",
@@ -138,13 +136,9 @@
       "POST /api/issues/:ref/renew",
       "POST /api/labels",
       "POST /api/milestones",
-      "POST /api/onboarding/credential",
-      "POST /api/onboarding/issue",
-      "POST /api/onboarding/project",
       "POST /api/projects",
       "POST /api/tokens",
-      "POST /api/users",
-      "POST /api/webhooks/resend"
+      "POST /api/users"
     ]
   },
   "types": {

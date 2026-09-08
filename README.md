@@ -19,7 +19,7 @@ contract is available at [Agentix API docs](https://agentix.moone.dev/api/docs).
 Install the versioned repository marketplace and plugin:
 
 ```text
-codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.4.0
+codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.5.0
 codex plugin add agentix@agentix
 ```
 
@@ -91,8 +91,34 @@ MCP catalogue.
 
 ## Release status
 
-Version 0.3 targets the hosted production Agentix release: 43 MCP tools, 60
-REST operations, and the derived epic states `planned`, `in_progress`,
-`completed`, and `canceled`. This public repository currently has no declared
-software license; publishing the source therefore does not grant third parties
-permission to reuse it.
+Version 0.5 supports the activation service (47 MCP tools, 70 REST operations),
+coordination-only releases (47/64), and the legacy service (43/60). It detects
+capabilities before using new filters or coordination commands. During staged
+rollout, the public service may still expose an older supported contract.
+
+Use **Connect an agent** in Agentix to create a separate identity and a token
+scoped to one workspace with a bounded lifetime. Issuing a token is not a
+successful connection: the client must call `get_started` with that credential.
+The guided first task includes an editable goal, criteria and verification;
+the agent acquires a claim and completes it with an immutable evidence report.
+
+For Claude Code, keep secrets out of configuration and shell history. Make
+`AGENTIX_MCP_TOKEN` available to the launching process and merge this entry into
+`.mcp.json` without replacing existing servers:
+
+```json
+{
+  "mcpServers": {
+    "agentix": {
+      "type": "http",
+      "url": "https://HOST/api/mcp",
+      "headers": { "Authorization": "Bearer ${AGENTIX_MCP_TOKEN}" }
+    }
+  }
+}
+```
+
+Environment references follow the [official Claude MCP documentation](https://code.claude.com/docs/en/mcp#environment-variable-expansion-in-mcp-json).
+
+This public repository currently has no declared software license; publishing
+source does not grant third parties permission to reuse it.
