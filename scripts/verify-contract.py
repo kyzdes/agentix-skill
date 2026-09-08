@@ -266,6 +266,8 @@ def verify_live_rest(contract: dict[str, Any], base_url: str) -> None:
         fail("live /api/docs does not identify the production Agentix contract")
     if "coordination" not in docs:
         contract = read_json(ROOT / "contracts" / "agentix-contract-v0.3.json")
+    elif "activation" not in docs:
+        contract = read_json(ROOT / "contracts" / "agentix-contract-v0.4.json")
     methods = docs.get("methods")
     if not isinstance(methods, list):
         fail("live /api/docs.methods must be an array")

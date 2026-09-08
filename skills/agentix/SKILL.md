@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.4.0"
+  version: "0.5.0"
 ---
 
 # Agentix
@@ -24,12 +24,12 @@ Agentix is a remote issue tracker and Markdown knowledge store for humans and AI
 
 If `get_started` or `whoami` works, continue to the workflow. Otherwise obtain the base URL and token from the user's approved secret store without displaying the token, then configure the MCP server for a future/reloaded session. Tokens expire after 1–365 days (90 by default) and grant either read-only or read-and-write access; request only the capability and lifetime required by the task.
 
-For Claude Code, configure the server with the approved token mechanism for
-your environment:
+For Claude Code, make `AGENTIX_MCP_TOKEN` available to the launching process and
+merge this entry into `.mcp.json`, preserving existing servers. This is a literal
+environment reference; never replace it with the token in a committed file:
 
-```text
-claude mcp add --scope user --transport http agentix https://HOST/api/mcp \
-  --header "Authorization: Bearer TOKEN"
+```json
+{"mcpServers":{"agentix":{"type":"http","url":"https://HOST/api/mcp","headers":{"Authorization":"Bearer ${AGENTIX_MCP_TOKEN}"}}}}
 ```
 
 For Codex, expose the token only in the environment that launches Codex (for
@@ -41,6 +41,14 @@ codex mcp add agentix --url https://HOST/api/mcp --bearer-token-env-var AGENTIX_
 ```
 
 For the current session, REST is the fallback. Read unauthenticated `GET https://HOST/api/docs`, then authenticate supported calls with the same Bearer token. `GET /api/health` is public. Do not confuse an Agentix `DATABASE_URL` with an API token.
+
+The guided web setup at `/onboarding` creates a separate agent identity and a
+workspace-scoped read/write credential (30-day default, 7/90-day alternatives).
+The ordinary settings/API token default remains 90 days. After setup, call
+`get_started` with this exact credential: creation, `whoami`, REST reads or a
+successful call with another token do not mark the new credential connected.
+Revocation or expiry requires a new valid credential and its own handshake.
+Never ask the user to paste the token into this conversation.
 
 ## Work cycle
 
@@ -55,6 +63,24 @@ For the current session, REST is the fallback. Read unauthenticated `GET https:/
 9. Keep `index` context-map documents short and current when project structure or durable knowledge changes.
 
 During staged rollout, older servers have no coordination tools or `taskCoordinationVersion`. Use their existing task/spec/checklist tools, verify every criterion, leave the evidence in a comment and then move to Done. This is a legacy convention, not an immutable completion report. Do not call missing tools. Both legacy and v2 context responses remain supported. On the new service, claims, revisions and completion evidence are mandatory server rules; user workflow preferences can choose the optional review step but cannot bypass those rules.
+
+## Daily views and shared documents
+
+On activation-capable servers, `list_issues` exposes an optional `view` argument:
+`mine`, `blocked`, `review`, or `recent`. Check the live schema before passing it;
+older coordination releases do not accept this field. Combine it with `assignee`
+to inspect one worker. `mine` defaults to the current agent. `blocked` contains
+active tasks with unfinished incoming dependencies; `recent` contains Done tasks
+with a current requirements report from the last 14 days. It excludes historical
+Done without reports. Returned claims name the active owner; a different active
+credential may not be overridden. Web filters are persisted in `/work` and
+project URLs.
+
+Canonical document links are `/documents/<uuid>`, including workspace-wide
+notes. Prefer the current project's wiki slug, then a workspace-wide document;
+use an explicit UUID for a cross-project reference. Do not construct a foreign
+document URL with the open issue's project. Fetch omitted context sections with
+the indicated IDs/readers rather than treating truncation as missing data.
 
 ## Creating runnable work
 
@@ -110,7 +136,7 @@ Use the client-exposed schema for exact arguments and return data. Seventeen too
 
 ## REST fallback
 
-REST and MCP share service rules and normalizers but are not identical verb-for-tool surfaces. Discover the current 64 REST method/path operations (60 on the compatible older service) at public `GET /api/docs`. Common mappings are:
+REST and MCP share service rules and normalizers but are not identical verb-for-tool surfaces. Discover the current 70 REST method/path operations (60 on the compatible older service) at public `GET /api/docs`. Common mappings are:
 
 | Intent | REST method |
 |---|---|
