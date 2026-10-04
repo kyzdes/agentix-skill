@@ -82,7 +82,7 @@ class CompatibilityTests(unittest.TestCase):
             self.assertTrue(args.live and args.require_schema_contract and args.require_mcp)
 
     def test_schema_contract_rejects_capability_changes(self):
-        for field, value in [("strictMcpInputs", False), ("strictMcpInputs", 1), ("inboxExplicitSelection", False), ("testCommandMaxLength", 2000), ("documentReadersVersion", 2), ("backlinksReadersVersion", 2)]:
+        for field, value in [("strictMcpInputs", False), ("strictMcpInputs", 1), ("inboxExplicitSelection", False), ("testCommandMaxLength", 2000), ("documentReadersVersion", 2), ("backlinksReadersVersion", 2), ("issueCommentsReadersVersion", 2)]:
             with self.subTest(field=field):
                 docs = self.schema_docs()
                 docs["schemaContract"]["capabilities"][field] = value
@@ -106,6 +106,10 @@ class CompatibilityTests(unittest.TestCase):
             lambda schema: schema["mcp"]["get_backlinks"]["properties"]["limit"].update(maximum=500),
             lambda schema: schema["mcp"]["get_backlinks"]["properties"]["limit"].update(default=50),
             lambda schema: schema["mcp"]["get_backlinks"]["properties"].pop("offset"),
+            lambda schema: schema["mcp"]["list_comments"]["properties"].pop("cursor"),
+            lambda schema: schema["mcp"]["list_comments"]["properties"]["limit"].update(maximum=500),
+            lambda schema: schema["rest"]["GET /api/issues/:ref/comments"]["properties"]["limit"].update(default=200),
+            lambda schema: schema["rest"]["GET /api/issues/:ref/comments"].update(additionalProperties=True),
             lambda schema: schema["rest"]["GET /api/documents"]["properties"]["limit"].update(default=200),
             lambda schema: schema["rest"]["GET /api/documents/:ref/versions"]["anyOf"][1]["properties"]["limit"].update(maximum=500),
             lambda schema: schema["rest"]["GET /api/documents/:ref/versions"]["anyOf"][0]["properties"]["versionId"].pop("format"),

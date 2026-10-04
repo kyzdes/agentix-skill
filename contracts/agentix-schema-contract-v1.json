@@ -5,7 +5,8 @@
     "inboxExplicitSelection": true,
     "testCommandMaxLength": 500,
     "documentReadersVersion": 1,
-    "backlinksReadersVersion": 1
+    "backlinksReadersVersion": 1,
+    "issueCommentsReadersVersion": 1
   },
   "rest": {
     "PATCH /api/inbox": {
@@ -348,6 +349,25 @@
         }
       ],
       "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "GET /api/issues/:ref/comments": {
+      "type": "object",
+      "properties": {
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 20
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600,
+          "pattern": "^[A-Za-z0-9_-]+$"
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
     }
   },
   "mcp": {
@@ -645,6 +665,34 @@
           "minimum": 0,
           "maximum": 1000000,
           "default": 0
+        }
+      },
+      "required": [
+        "issue"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "list_comments": {
+      "type": "object",
+      "properties": {
+        "issue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Issue"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 20
+        },
+        "cursor": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 600,
+          "pattern": "^[A-Za-z0-9_-]+$"
         }
       },
       "required": [

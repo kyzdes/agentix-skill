@@ -108,7 +108,7 @@ python3 scripts/verify-contract.py --live --base-url https://candidate.example -
 ```
 
 This gate fails if the schema marker or MCP token is missing. The projection covers
-six REST input schemas and five MCP input schemas; refinements and conditional
+seven REST input schemas and six MCP input schemas; refinements and conditional
 rules are checked by the service's actual HTTP/MCP tests. Without these flags,
 the public monitor continues to support legacy servers and reports skipped checks.
 
@@ -130,6 +130,13 @@ documents are checked against the active workspace. Selected bodies use
 `get_document(sourceId)`. Concurrent writes can change offset pages.
 Supported offsets are 0..1,000,000. If more data requires a continuation above
 that bound, the read fails explicitly; it does not report catalogue exhaustion.
+`issueCommentsReadersVersion:1` bounds `get_issue` to the latest 20 comments with
+`commentPage:{total,nextCursor}`. `list_comments` and the REST comments reader
+return `{items,total,nextCursor}` (default 20, max 200). Each page is chronological;
+the cursor reads the previous, older page. Legacy REST `offset` fails explicitly
+with a migration hint. Concurrent inserts require a first-page refresh; totals
+are live counts, not a snapshot. Other nested issue collections and write/replay
+results keep their existing contract in this candidate.
 This coordinated service/plugin working tree is unreleased; versions and install
 tags above have not changed. Legacy services keep their existing response shapes.
 The projection's `version:1` names its format; capabilities identify reader behavior.
@@ -137,7 +144,7 @@ The projection's `version:1` names its format; capabilities identify reader beha
 | Service surface | Client/verification policy |
 |---|---|
 | Legacy, coordination, released activation without `schemaContract` | Existing inventory/enums fixtures; field schemas explicitly skipped |
-| Local candidate with `documentReadersVersion:1` and `backlinksReadersVersion:1` | Updated shared skill and UI; document/history/backlink metadata pages and selected-body reads; both required candidate flags |
+| Local candidate with `documentReadersVersion:1`, `backlinksReadersVersion:1`, and `issueCommentsReadersVersion:1` | Updated shared skill and UI; document/history/backlink readers and cursor comment pages; both required candidate flags |
 
 The schema fixture is generated from owning runtime definitions, separately from
 the three historical inventory fixtures. From the sibling service checkout:

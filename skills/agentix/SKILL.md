@@ -93,6 +93,21 @@ belongs to that document and workspace. Totals/pages use READ COMMITTED semantic
 so concurrent writes can change the catalogue; they are not a fixed snapshot.
 On older servers, follow the discovered live contract and its legacy response.
 
+On servers advertising `schemaContract.capabilities.issueCommentsReadersVersion:1`,
+`get_issue` includes only the latest 20 comments and `commentPage:{total,nextCursor}`.
+`list_comments(issue, limit?, cursor?)` and REST `/api/issues/<uuid>/comments` return
+`{items,total,nextCursor}` (default 20, max 200). Each page lists its comments from
+oldest to newest; the cursor fetches the preceding, older page. Prepend that page
+when building a chronological thread. Pass `nextCursor` unchanged until null; do
+not infer that the first page is the whole conversation. Cursor identity is bound
+to the issue; malformed or mismatched cursors fail. This public reader rejects
+legacy `offset` rather than changing its meaning. Concurrent inserts appear after
+refreshing the first page; totals can change and reads do not form a snapshot.
+This capability bounds comments only; other issue collections retain their live
+contract. Write results and stored retries may retain the older full detail shape;
+use their revision/IDs, and `get_issue` when a fresh read is needed. Older servers
+keep their discovered legacy comment shape and arguments.
+
 On servers advertising `schemaContract.capabilities.backlinksReadersVersion:1`,
 `get_backlinks(issue, limit?, offset?)` returns `{items,nextOffset}` containing
 document link metadata, without Markdown bodies (default 20, max 100). Pass the
