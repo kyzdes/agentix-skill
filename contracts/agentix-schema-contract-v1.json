@@ -1,0 +1,657 @@
+{
+  "version": 1,
+  "capabilities": {
+    "strictMcpInputs": true,
+    "inboxExplicitSelection": true,
+    "testCommandMaxLength": 500,
+    "documentReadersVersion": 1,
+    "backlinksReadersVersion": 1
+  },
+  "rest": {
+    "PATCH /api/inbox": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "notificationIds": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "minItems": 1,
+              "maxItems": 200
+            }
+          },
+          "required": [
+            "notificationIds"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "all": {
+              "type": "boolean",
+              "const": true
+            }
+          },
+          "required": [
+            "all"
+          ],
+          "additionalProperties": false
+        }
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "POST /api/onboarding/issue": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 300
+        },
+        "goal": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 45000
+        },
+        "criteria": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 500
+          },
+          "minItems": 1,
+          "maxItems": 20
+        },
+        "verification": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000
+        },
+        "testCommand": {
+          "type": "string",
+          "maxLength": 500
+        }
+      },
+      "required": [
+        "title",
+        "goal",
+        "criteria",
+        "verification"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "PATCH /api/issues/:ref/spec": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "claimId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "relevantPaths": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "maxItems": 50
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "testCommand": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "POST /api/issues/:ref/complete": {
+      "type": "object",
+      "properties": {
+        "expectedRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "claimId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "specRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "url",
+                  "commit",
+                  "branch",
+                  "path"
+                ]
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "kind",
+              "reference"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 50
+        },
+        "verification": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "command"
+                },
+                "command": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "minLength": 1
+                },
+                "result": {
+                  "type": "string",
+                  "const": "passed"
+                },
+                "exitCode": {
+                  "type": "number",
+                  "const": 0
+                },
+                "details": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "method",
+                "command",
+                "result",
+                "exitCode",
+                "details"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "manual"
+                },
+                "result": {
+                  "type": "string",
+                  "const": "passed"
+                },
+                "details": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "method",
+                "result",
+                "details"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "result": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "method",
+                "result",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        }
+      },
+      "required": [
+        "specRevision",
+        "summary",
+        "artifacts",
+        "verification"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "GET /api/documents": {
+      "type": "object",
+      "properties": {
+        "projectId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "issueId": {
+          "$ref": "#/properties/projectId"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "plan",
+            "memory",
+            "context_map",
+            "note"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 0
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "GET /api/documents/:ref/versions": {
+      "anyOf": [
+        {
+          "type": "object",
+          "properties": {
+            "versionId": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "versionId"
+          ],
+          "additionalProperties": false
+        },
+        {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            },
+            "cursor": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 600,
+              "pattern": "^[A-Za-z0-9_-]+$"
+            }
+          },
+          "additionalProperties": false
+        }
+      ],
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  },
+  "mcp": {
+    "mark_read": {
+      "type": "object",
+      "properties": {
+        "notificationIds": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "minItems": 1,
+          "maxItems": 200
+        },
+        "all": {
+          "type": "boolean",
+          "const": true
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "set_task_spec": {
+      "type": "object",
+      "properties": {
+        "issue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Issue"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "claimId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "relevantPaths": {
+          "anyOf": [
+            {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 300
+              },
+              "maxItems": 50
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "testCommand": {
+          "anyOf": [
+            {
+              "type": "string",
+              "maxLength": 500
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        }
+      },
+      "required": [
+        "issue"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "complete_issue": {
+      "type": "object",
+      "properties": {
+        "issue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Issue"
+        },
+        "expectedRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "claimId": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "specRevision": {
+          "type": "integer",
+          "exclusiveMinimum": 0
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 10000
+        },
+        "artifacts": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "url",
+                  "commit",
+                  "branch",
+                  "path"
+                ]
+              },
+              "reference": {
+                "type": "string",
+                "minLength": 1,
+                "maxLength": 2000
+              }
+            },
+            "required": [
+              "kind",
+              "reference"
+            ],
+            "additionalProperties": false
+          },
+          "minItems": 1,
+          "maxItems": 50
+        },
+        "verification": {
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "command"
+                },
+                "command": {
+                  "type": "string",
+                  "maxLength": 500,
+                  "minLength": 1
+                },
+                "result": {
+                  "type": "string",
+                  "const": "passed"
+                },
+                "exitCode": {
+                  "type": "number",
+                  "const": 0
+                },
+                "details": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "method",
+                "command",
+                "result",
+                "exitCode",
+                "details"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "manual"
+                },
+                "result": {
+                  "type": "string",
+                  "const": "passed"
+                },
+                "details": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 10000
+                }
+              },
+              "required": [
+                "method",
+                "result",
+                "details"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {
+                "method": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "result": {
+                  "type": "string",
+                  "const": "not_applicable"
+                },
+                "reason": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000
+                }
+              },
+              "required": [
+                "method",
+                "result",
+                "reason"
+              ],
+              "additionalProperties": false
+            }
+          ]
+        },
+        "idempotencyKey": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[A-Za-z0-9._:-]+$"
+        }
+      },
+      "required": [
+        "issue",
+        "specRevision",
+        "summary",
+        "artifacts",
+        "verification"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "list_documents": {
+      "type": "object",
+      "properties": {
+        "project": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Project"
+        },
+        "type": {
+          "type": "string",
+          "enum": [
+            "plan",
+            "memory",
+            "context_map",
+            "note"
+          ]
+        },
+        "query": {
+          "type": "string",
+          "maxLength": 200
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 200,
+          "default": 50
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 0
+        }
+      },
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    },
+    "get_backlinks": {
+      "type": "object",
+      "properties": {
+        "issue": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200,
+          "description": "Issue"
+        },
+        "limit": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 100,
+          "default": 20
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000000,
+          "default": 0
+        }
+      },
+      "required": [
+        "issue"
+      ],
+      "additionalProperties": false,
+      "$schema": "http://json-schema.org/draft-07/schema#"
+    }
+  }
+}

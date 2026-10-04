@@ -82,6 +82,26 @@ use an explicit UUID for a cross-project reference. Do not construct a foreign
 document URL with the open issue's project. Fetch omitted context sections with
 the indicated IDs/readers rather than treating truncation as missing data.
 
+On servers advertising `schemaContract.capabilities.documentReadersVersion:1`,
+`list_documents` returns metadata without `contentMd` (default 50, max 200).
+Continue with `offset`; use `get_document(id)` for a selected Markdown body.
+Version history uses an authorized REST read at `/api/documents/<uuid>/versions`:
+`{items,total,nextCursor}` contains metadata (default 20, max 100). Pass the opaque
+`nextCursor` unchanged as `cursor` until it is null; request one snapshot with
+`?versionId=<uuid>`. Do not combine `versionId` with pagination. A selected version
+belongs to that document and workspace. Totals/pages use READ COMMITTED semantics,
+so concurrent writes can change the catalogue; they are not a fixed snapshot.
+On older servers, follow the discovered live contract and its legacy response.
+
+On servers advertising `schemaContract.capabilities.backlinksReadersVersion:1`,
+`get_backlinks(issue, limit?, offset?)` returns `{items,nextOffset}` containing
+document link metadata, without Markdown bodies (default 20, max 100). Pass the
+returned `nextOffset` until it is null; documents are ordered by ID. Read a selected
+body with `get_document(sourceId)`. Both target and sources belong to the active
+workspace. Supported offsets are 0..1,000,000; a page requiring continuation above
+that bound fails explicitly. Offset pages can change under concurrent writes; older servers retain
+their discovered legacy response.
+
 ## Creating runnable work
 
 A useful issue has one coherent outcome:
@@ -104,6 +124,7 @@ Split a smaller piece with `add_sub_issue`; group a theme under an epic; use a m
 - Omitted fields mean unchanged/defaulted; `null` clears only fields whose live schema is nullable.
 - Markdown fields are `description`, `content`, and `body` at the agent edge; REST also accepts their `*Md` forms.
 - Dates are ISO strings. IDs are UUID strings. List bounds and exact write fields come from the live tool/REST schema.
+- If `GET /api/docs` reports `schemaContract.capabilities.inboxExplicitSelection:true`, `mark_read` requires exactly one selector: nonempty `notificationIds` or `all:true`; an empty request is invalid. On older servers, follow the discovered live schema.
 
 Core enums:
 

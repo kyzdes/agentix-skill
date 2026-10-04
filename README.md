@@ -45,6 +45,7 @@ integration and workspace.
 skills/agentix/SKILL.md              shared complete agent instructions
 hooks/hooks.json                     host-aware SessionStart update hook
 scripts/auto-update.sh               debounced opt-in updater
+scripts/auto-update.py               OS lock and deadline runner (Python 3, POSIX)
 contracts/agentix-contract.json      checked MCP/REST/type snapshot
 scripts/verify-contract.py           static and live compatibility check
 ```
@@ -71,9 +72,19 @@ export AGENTIX_PLUGIN_AUTO_UPDATE=1
 When enabled, it updates only the plugin for the host starting the session:
 Claude refreshes `agentix@claude-skills`; Codex refreshes and reinstalls
 `agentix@agentix`. Updates are debounced for four hours, concurrent sessions
-are serialized, and the private log is capped at 64 KiB. Configure the
+are serialized, and the private log is trimmed to 64 KiB after each attempt. Configure the
 interval and cap with `AGENTIX_PLUGIN_AUTO_UPDATE_INTERVAL_SEC` and
 `AGENTIX_PLUGIN_AUTO_UPDATE_LOG_BYTES`.
+
+The optional updater requires Python 3 on a POSIX host; if Python is unavailable,
+it skips updates. A kernel lock protects slow clients, and the default deadline
+is 20 seconds (configurable from 1 to 25 with
+`AGENTIX_PLUGIN_AUTO_UPDATE_TIMEOUT_SEC`). The stable `update.lockfile` must not
+be deleted while an updater is running.
+
+The deadline and cooperative termination are tested with fake clients. Killing
+the runner with SIGKILL while its child remains alive does not guarantee immediate
+lock recovery; the log limit is applied after the attempt, not continuously.
 
 ## Validate
 
@@ -89,12 +100,55 @@ public contract probe on a schedule. Configure the repository secret
 `AGENTIX_CONTRACT_MCP_TOKEN` to make that scheduled check include the private
 MCP catalogue.
 
+For a candidate that must expose the new schema projection, supply the scoped
+`AGENTIX_CONTRACT_MCP_TOKEN` through the runner environment and use both requirements:
+
+```bash
+python3 scripts/verify-contract.py --live --base-url https://candidate.example --require-schema-contract --require-mcp
+```
+
+This gate fails if the schema marker or MCP token is missing. The projection covers
+six REST input schemas and five MCP input schemas; refinements and conditional
+rules are checked by the service's actual HTTP/MCP tests. Without these flags,
+the public monitor continues to support legacy servers and reports skipped checks.
+
 ## Release status
 
 Version 0.5 supports the activation service (47 MCP tools, 70 REST operations),
 coordination-only releases (47/64), and the legacy service (43/60). It detects
 capabilities before using new filters or coordination commands. During staged
 rollout, the public service may still expose an older supported contract.
+
+The current local candidate adds `schemaContract.capabilities.documentReadersVersion:1`.
+Its document lists contain metadata without Markdown bodies; selected bodies still
+use `get_document`/`GET /api/documents/:ref`. History is paged metadata, while
+`GET /api/documents/:ref/versions?versionId=UUID` reads one full snapshot.
+The candidate also advertises `backlinksReadersVersion:1`: `get_backlinks`
+returns `{items,nextOffset}` document metadata (default 20, max 100), ordered by
+document ID. Continue with the returned offset until null; the target issue and source
+documents are checked against the active workspace. Selected bodies use
+`get_document(sourceId)`. Concurrent writes can change offset pages.
+Supported offsets are 0..1,000,000. If more data requires a continuation above
+that bound, the read fails explicitly; it does not report catalogue exhaustion.
+This coordinated service/plugin working tree is unreleased; versions and install
+tags above have not changed. Legacy services keep their existing response shapes.
+The projection's `version:1` names its format; capabilities identify reader behavior.
+
+| Service surface | Client/verification policy |
+|---|---|
+| Legacy, coordination, released activation without `schemaContract` | Existing inventory/enums fixtures; field schemas explicitly skipped |
+| Local candidate with `documentReadersVersion:1` and `backlinksReadersVersion:1` | Updated shared skill and UI; document/history/backlink metadata pages and selected-body reads; both required candidate flags |
+
+The schema fixture is generated from owning runtime definitions, separately from
+the three historical inventory fixtures. From the sibling service checkout:
+
+```bash
+pnpm exec tsx -e 'import { schemaContract } from "./lib/schemas/schema-contract"; console.log(JSON.stringify(schemaContract, null, 2));' > ../agentix-skill/contracts/agentix-schema-contract-v1.json
+```
+
+Review any generated change together with its service/client migration. The verifier
+checks exact drift in covered input schemas; it does not infer backward compatibility
+or prove output/refinement semantics, which require actual HTTP/MCP regression tests.
 
 Use **Connect an agent** in Agentix to create a separate identity and a token
 scoped to one workspace with a bounded lifetime. Issuing a token is not a

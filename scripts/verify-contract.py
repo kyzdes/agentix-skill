@@ -21,6 +21,7 @@ from urllib.request import Request, urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
 SNAPSHOT_PATH = ROOT / "contracts" / "agentix-contract.json"
+SCHEMA_SNAPSHOT_PATH = ROOT / "contracts" / "agentix-schema-contract-v1.json"
 SKILL_PATH = ROOT / "skills" / "agentix" / "SKILL.md"
 CLAUDE_MANIFEST_PATH = ROOT / ".claude-plugin" / "plugin.json"
 CODEX_MANIFEST_PATH = ROOT / ".codex-plugin" / "plugin.json"
@@ -258,7 +259,35 @@ def request_json(url: str, headers: dict[str, str] | None = None, body: bytes | 
         fail(f"live contract response was not JSON: {exc}")
 
 
-def verify_live_rest(contract: dict[str, Any], base_url: str) -> None:
+def schema_projection(value: Any, keyword: str | None = None) -> Any:
+    """Compare validation semantics, without presentation text or key ordering."""
+    if isinstance(value, dict):
+        return {
+            key: schema_projection(item, key)
+            for key, item in value.items()
+            if key not in {"description", "title", "$schema"}
+        }
+    if isinstance(value, list):
+        projected = [schema_projection(item) for item in value]
+        return sorted(projected, key=lambda item: json.dumps(item, sort_keys=True)) if keyword in {"required", "enum", "anyOf", "oneOf", "allOf", "type"} else projected
+    return value
+
+
+def require_schema_equal(actual: Any, expected: Any, label: str) -> None:
+    actual_projection = json.dumps(schema_projection(actual), sort_keys=True)
+    expected_projection = json.dumps(schema_projection(expected), sort_keys=True)
+    if actual_projection != expected_projection:
+        fail(f"{label} schema/capability drift")
+
+
+def schema_snapshot() -> dict[str, Any]:
+    expected = read_json(SCHEMA_SNAPSHOT_PATH)
+    if expected.get("version") != 1 or not all(isinstance(expected.get(key), dict) for key in ("capabilities", "rest", "mcp")):
+        fail("schema snapshot must contain version 1, capabilities, rest and mcp")
+    return expected
+
+
+def verify_live_rest(contract: dict[str, Any], base_url: str, require_schema_contract: bool = False) -> dict[str, Any] | None:
     docs = request_json(f"{base_url.rstrip('/')}/api/docs")
     if not isinstance(docs, dict):
         fail("live /api/docs response must be an object")
@@ -286,10 +315,21 @@ def verify_live_rest(contract: dict[str, Any], base_url: str) -> None:
     for name, expected in contract["types"].items():
         actual = live_types.get(name)
         require_equal(string_values(actual, f"live types.{name}"), expected, f"live types.{name}")
+    if "schemaContract" not in docs:
+        if require_schema_contract:
+            fail("candidate is missing the required schemaContract marker")
+        print("ok: live schemas skipped (supported legacy service has no schemaContract marker)")
+        return None
+    expected_schema = schema_snapshot()
+    require_schema_equal(docs["schemaContract"], expected_schema, "live REST contract")
+    print("ok: live REST schemas and capabilities (schemaContract v1)")
+    return expected_schema
 
 
-def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None) -> None:
+def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None, expected_schema: dict[str, Any] | None = None, require_mcp: bool = False) -> None:
     if not token:
+        if require_mcp:
+            fail("candidate requires authenticated MCP; AGENTIX_CONTRACT_MCP_TOKEN is not configured")
         print("ok: live MCP catalogue skipped (AGENTIX_CONTRACT_MCP_TOKEN is not configured)")
         return
     body = json.dumps(
@@ -336,18 +376,30 @@ def verify_live_mcp(contract: dict[str, Any], base_url: str, token: str | None) 
         and tool["annotations"].get("readOnlyHint") is True
     ]
     require_equal(read_tools, contract["mcp"]["readTools"], "live MCP read-only tools")
+    if expected_schema is not None:
+        by_name = {tool["name"]: tool for tool in tools}
+        for name, expected in expected_schema["mcp"].items():
+            require_schema_equal(by_name.get(name, {}).get("inputSchema"), expected, f"live MCP {name}")
+        print("ok: live MCP input schemas (schemaContract v1)")
+    else:
+        print("ok: live MCP schemas skipped (legacy contract)")
     print(f"ok: live MCP catalogue ({len(tools)} tools, {len(read_tools)} read-only)")
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--live", action="store_true", help="also verify the deployed public REST contract")
+    parser.add_argument("--require-schema-contract", action="store_true", help="fail a candidate probe if the field-schema marker is missing (requires --live)")
+    parser.add_argument("--require-mcp", action="store_true", help="fail a candidate probe if authenticated MCP cannot be checked (requires --live)")
     parser.add_argument(
         "--base-url",
         default=os.environ.get("AGENTIX_CONTRACT_URL", DEFAULT_BASE_URL),
         help="Agentix base URL for --live (defaults to AGENTIX_CONTRACT_URL or hosted production)",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if (args.require_schema_contract or args.require_mcp) and not args.live:
+        parser.error("candidate requirements need --live")
+    return args
 
 
 def main() -> None:
@@ -355,11 +407,12 @@ def main() -> None:
     contract = snapshot()
     static_skill_contract(contract)
     static_package_contract()
+    schema_snapshot()
     print("ok: static Agentix package contract")
     if args.live:
-        verify_live_rest(contract, args.base_url)
+        expected_schema = verify_live_rest(contract, args.base_url, args.require_schema_contract)
         print("ok: live public REST contract")
-        verify_live_mcp(contract, args.base_url, os.environ.get("AGENTIX_CONTRACT_MCP_TOKEN"))
+        verify_live_mcp(contract, args.base_url, os.environ.get("AGENTIX_CONTRACT_MCP_TOKEN"), expected_schema, args.require_mcp)
 
 
 if __name__ == "__main__":
