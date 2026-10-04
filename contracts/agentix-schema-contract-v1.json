@@ -6,7 +6,8 @@
     "testCommandMaxLength": 500,
     "documentReadersVersion": 1,
     "backlinksReadersVersion": 1,
-    "issueCommentsReadersVersion": 1
+    "issueCommentsReadersVersion": 1,
+    "issueMutationResultsVersion": 1
   },
   "rest": {
     "PATCH /api/inbox": {

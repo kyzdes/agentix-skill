@@ -104,9 +104,33 @@ to the issue; malformed or mismatched cursors fail. This public reader rejects
 legacy `offset` rather than changing its meaning. Concurrent inserts appear after
 refreshing the first page; totals can change and reads do not form a snapshot.
 This capability bounds comments only; other issue collections retain their live
-contract. Write results and stored retries may retain the older full detail shape;
-use their revision/IDs, and `get_issue` when a fresh read is needed. Older servers
+contract. Write results have their own capability below; stored retries may retain
+the older full detail shape. Older servers
 keep their discovered legacy comment shape and arguments.
+
+On servers advertising `schemaContract.capabilities.issueMutationResultsVersion:1`,
+`create_issue`, `update_issue`, `move_issue`, `assign_issue`, `add_sub_issue`,
+`set_task_spec`, `link_issues` and `complete_issue` return the issue's card fields
+(IDs/key, revision/specRevision, title/status/priority, planning IDs, assignee,
+labels and dates), plus `descriptionMd`, `relevantPaths`, `testCommand` and `parentId`.
+`link_issues` also returns `relationId`, usable by `unlink_issues` without rereading
+the whole issue. A keyed retry returns the original success if that relation was
+later removed; it does not recreate the relation, and source access is checked again.
+`complete_issue` also returns `claim:null` and singular `completion`: exactly the
+new report with its ID, provenance, evidence and requirements revision. It is not
+completion history. REST create/PATCH issue, PATCH spec, POST relations and POST
+complete use the same result semantics; onboarding creation retains its own shape.
+
+Comments, checklist, children, relations and completion history are omitted, not
+empty. Keep the authoritative returned revision for your next command. A status
+change with unchanged `specRevision` can be merged into the task already read while
+retaining its checklist. Retain other prior collections only when the operation
+cannot affect them; changed requirements or links need the existing detail refresh
+before using affected data. Do not replace a full task snapshot with a mutation
+result. Existing idempotent retries still return the originally stored result
+exactly, including a legacy full detail; reusing a key does not upgrade its shape.
+New results omit history independently of its length. These fields are sufficient
+for chaining ordinary writes without adding a mandatory read after every command.
 
 On servers advertising `schemaContract.capabilities.backlinksReadersVersion:1`,
 `get_backlinks(issue, limit?, offset?)` returns `{items,nextOffset}` containing

@@ -82,7 +82,7 @@ class CompatibilityTests(unittest.TestCase):
             self.assertTrue(args.live and args.require_schema_contract and args.require_mcp)
 
     def test_schema_contract_rejects_capability_changes(self):
-        for field, value in [("strictMcpInputs", False), ("strictMcpInputs", 1), ("inboxExplicitSelection", False), ("testCommandMaxLength", 2000), ("documentReadersVersion", 2), ("backlinksReadersVersion", 2), ("issueCommentsReadersVersion", 2)]:
+        for field, value in [("strictMcpInputs", False), ("strictMcpInputs", 1), ("inboxExplicitSelection", False), ("testCommandMaxLength", 2000), ("documentReadersVersion", 2), ("backlinksReadersVersion", 2), ("issueCommentsReadersVersion", 2), ("issueMutationResultsVersion", 2)]:
             with self.subTest(field=field):
                 docs = self.schema_docs()
                 docs["schemaContract"]["capabilities"][field] = value

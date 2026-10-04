@@ -135,8 +135,16 @@ that bound, the read fails explicitly; it does not report catalogue exhaustion.
 return `{items,total,nextCursor}` (default 20, max 200). Each page is chronological;
 the cursor reads the previous, older page. Legacy REST `offset` fails explicitly
 with a migration hint. Concurrent inserts require a first-page refresh; totals
-are live counts, not a snapshot. Other nested issue collections and write/replay
-results keep their existing contract in this candidate.
+are live counts, not a snapshot. Other nested issue readers keep their existing contract.
+`issueMutationResultsVersion:1` applies to create/update/move/assign/sub-issue/spec/link
+and complete operations. New results contain the issue card, current revision/specRevision,
+description, spec fields and parentId, without comments, checklist, children, relations
+or completion history. Completion adds `claim:null` and singular `completion` for
+the report just recorded; linking adds its own `relationId` for later unlinking.
+Omission does not mean an empty collection. Existing saved
+retries preserve their exact old result after current authorization; neither hashes
+nor ledger rows are rewritten. This is a coordinated candidate change, not a claim
+of backward compatibility with clients that replace their full issue snapshot after writes.
 This coordinated service/plugin working tree is unreleased; versions and install
 tags above have not changed. Legacy services keep their existing response shapes.
 The projection's `version:1` names its format; capabilities identify reader behavior.
@@ -144,7 +152,7 @@ The projection's `version:1` names its format; capabilities identify reader beha
 | Service surface | Client/verification policy |
 |---|---|
 | Legacy, coordination, released activation without `schemaContract` | Existing inventory/enums fixtures; field schemas explicitly skipped |
-| Local candidate with `documentReadersVersion:1`, `backlinksReadersVersion:1`, and `issueCommentsReadersVersion:1` | Updated shared skill and UI; document/history/backlink readers and cursor comment pages; both required candidate flags |
+| Local candidate with `documentReadersVersion:1`, `backlinksReadersVersion:1`, `issueCommentsReadersVersion:1`, and `issueMutationResultsVersion:1` | Updated shared skill and UI; metadata/cursor readers and issue writes without history; exact legacy replay retained; both required candidate flags |
 
 The schema fixture is generated from owning runtime definitions, separately from
 the three historical inventory fixtures. From the sibling service checkout:
