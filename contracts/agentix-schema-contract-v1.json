@@ -11,18 +11,20 @@
   },
   "rest": {
     "PATCH /api/inbox": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "anyOf": [
         {
           "type": "object",
           "properties": {
             "notificationIds": {
+              "minItems": 1,
+              "maxItems": 200,
               "type": "array",
               "items": {
                 "type": "string",
-                "format": "uuid"
-              },
-              "minItems": 1,
-              "maxItems": 200
+                "format": "uuid",
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+              }
             }
           },
           "required": [
@@ -43,10 +45,10 @@
           ],
           "additionalProperties": false
         }
-      ],
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      ]
     },
     "POST /api/onboarding/issue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "title": {
@@ -60,14 +62,14 @@
           "maxLength": 45000
         },
         "criteria": {
+          "minItems": 1,
+          "maxItems": 20,
           "type": "array",
           "items": {
             "type": "string",
             "minLength": 1,
             "maxLength": 500
-          },
-          "minItems": 1,
-          "maxItems": 20
+          }
         },
         "verification": {
           "type": "string",
@@ -85,30 +87,32 @@
         "criteria",
         "verification"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "PATCH /api/issues/:ref/spec": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "expectedRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "claimId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "relevantPaths": {
           "anyOf": [
             {
+              "maxItems": 50,
               "type": "array",
               "items": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 300
-              },
-              "maxItems": 50
+              }
             },
             {
               "type": "null"
@@ -127,23 +131,26 @@
           ]
         }
       },
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "POST /api/issues/:ref/complete": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "expectedRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "claimId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "specRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "summary": {
           "type": "string",
@@ -151,6 +158,8 @@
           "maxLength": 10000
         },
         "artifacts": {
+          "minItems": 1,
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "object",
@@ -175,12 +184,10 @@
               "reference"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1,
-          "maxItems": 50
+          }
         },
         "verification": {
-          "anyOf": [
+          "oneOf": [
             {
               "type": "object",
               "properties": {
@@ -190,8 +197,8 @@
                 },
                 "command": {
                   "type": "string",
-                  "maxLength": 500,
-                  "minLength": 1
+                  "minLength": 1,
+                  "maxLength": 500
                 },
                 "result": {
                   "type": "string",
@@ -273,18 +280,21 @@
         "artifacts",
         "verification"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "GET /api/documents": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "projectId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "issueId": {
-          "$ref": "#/properties/projectId"
+          "type": "string",
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "type": {
           "type": "string",
@@ -300,29 +310,30 @@
           "maxLength": 200
         },
         "limit": {
+          "default": 50,
           "type": "integer",
           "minimum": 1,
-          "maximum": 200,
-          "default": 50
+          "maximum": 200
         },
         "offset": {
+          "default": 0,
           "type": "integer",
           "minimum": 0,
-          "maximum": 1000000,
-          "default": 0
+          "maximum": 1000000
         }
       },
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "GET /api/documents/:ref/versions": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "anyOf": [
         {
           "type": "object",
           "properties": {
             "versionId": {
               "type": "string",
-              "format": "uuid"
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
             }
           },
           "required": [
@@ -334,10 +345,10 @@
           "type": "object",
           "properties": {
             "limit": {
+              "default": 20,
               "type": "integer",
               "minimum": 1,
-              "maximum": 100,
-              "default": 20
+              "maximum": 100
             },
             "cursor": {
               "type": "string",
@@ -348,17 +359,17 @@
           },
           "additionalProperties": false
         }
-      ],
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      ]
     },
     "GET /api/issues/:ref/comments": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "limit": {
+          "default": 20,
           "type": "integer",
           "minimum": 1,
-          "maximum": 200,
-          "default": 20
+          "maximum": 200
         },
         "cursor": {
           "type": "string",
@@ -367,32 +378,33 @@
           "pattern": "^[A-Za-z0-9_-]+$"
         }
       },
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     }
   },
   "mcp": {
     "mark_read": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "notificationIds": {
+          "minItems": 1,
+          "maxItems": 200,
           "type": "array",
           "items": {
             "type": "string",
-            "format": "uuid"
-          },
-          "minItems": 1,
-          "maxItems": 200
+            "format": "uuid",
+            "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+          }
         },
         "all": {
           "type": "boolean",
           "const": true
         }
       },
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "set_task_spec": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "issue": {
@@ -403,22 +415,24 @@
         },
         "expectedRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "claimId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "relevantPaths": {
           "anyOf": [
             {
+              "maxItems": 50,
               "type": "array",
               "items": {
                 "type": "string",
                 "minLength": 1,
                 "maxLength": 300
-              },
-              "maxItems": 50
+              }
             },
             {
               "type": "null"
@@ -446,10 +460,10 @@
       "required": [
         "issue"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "complete_issue": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "issue": {
@@ -460,15 +474,18 @@
         },
         "expectedRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "claimId": {
           "type": "string",
-          "format": "uuid"
+          "format": "uuid",
+          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
         },
         "specRevision": {
           "type": "integer",
-          "exclusiveMinimum": 0
+          "exclusiveMinimum": 0,
+          "maximum": 9007199254740991
         },
         "summary": {
           "type": "string",
@@ -476,6 +493,8 @@
           "maxLength": 10000
         },
         "artifacts": {
+          "minItems": 1,
+          "maxItems": 50,
           "type": "array",
           "items": {
             "type": "object",
@@ -500,12 +519,10 @@
               "reference"
             ],
             "additionalProperties": false
-          },
-          "minItems": 1,
-          "maxItems": 50
+          }
         },
         "verification": {
-          "anyOf": [
+          "oneOf": [
             {
               "type": "object",
               "properties": {
@@ -515,8 +532,8 @@
                 },
                 "command": {
                   "type": "string",
-                  "maxLength": 500,
-                  "minLength": 1
+                  "minLength": 1,
+                  "maxLength": 500
                 },
                 "result": {
                   "type": "string",
@@ -605,10 +622,10 @@
         "artifacts",
         "verification"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "list_documents": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "project": {
@@ -631,22 +648,22 @@
           "maxLength": 200
         },
         "limit": {
+          "default": 50,
           "type": "integer",
           "minimum": 1,
-          "maximum": 200,
-          "default": 50
+          "maximum": 200
         },
         "offset": {
+          "default": 0,
           "type": "integer",
           "minimum": 0,
-          "maximum": 1000000,
-          "default": 0
+          "maximum": 1000000
         }
       },
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "get_backlinks": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "issue": {
@@ -656,25 +673,25 @@
           "description": "Issue"
         },
         "limit": {
+          "default": 20,
           "type": "integer",
           "minimum": 1,
-          "maximum": 100,
-          "default": 20
+          "maximum": 100
         },
         "offset": {
+          "default": 0,
           "type": "integer",
           "minimum": 0,
-          "maximum": 1000000,
-          "default": 0
+          "maximum": 1000000
         }
       },
       "required": [
         "issue"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     },
     "list_comments": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "type": "object",
       "properties": {
         "issue": {
@@ -684,10 +701,10 @@
           "description": "Issue"
         },
         "limit": {
+          "default": 20,
           "type": "integer",
           "minimum": 1,
-          "maximum": 200,
-          "default": 20
+          "maximum": 200
         },
         "cursor": {
           "type": "string",
@@ -699,8 +716,7 @@
       "required": [
         "issue"
       ],
-      "additionalProperties": false,
-      "$schema": "http://json-schema.org/draft-07/schema#"
+      "additionalProperties": false
     }
   }
 }

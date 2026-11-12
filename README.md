@@ -5,6 +5,14 @@ Agentix plugin for Claude Code and Codex. It teaches an agent to orient with
 keep status, checklist, and comment evidence current. The public live service
 contract is available at [Agentix API docs](https://agentix.moone.dev/api/docs).
 
+## Resume development
+
+Start with [the project state](docs/project-state.md) for the current release,
+repository map, evidence and next steps. [AGENTS.md](AGENTS.md) defines the small
+startup context and maintenance rules for a new agent session. This checkout
+contains the plugin; the [Agentix application](https://github.com/kyzdes/agentix)
+has its own repository and release process.
+
 ## Install
 
 ### Claude Code
@@ -19,7 +27,7 @@ contract is available at [Agentix API docs](https://agentix.moone.dev/api/docs).
 Install the versioned repository marketplace and plugin:
 
 ```text
-codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.5.0
+codex plugin marketplace add kyzdes/agentix-skill --ref agentix--v0.6.0
 codex plugin add agentix@agentix
 ```
 
@@ -47,7 +55,13 @@ hooks/hooks.json                     host-aware SessionStart update hook
 scripts/auto-update.sh               debounced opt-in updater
 scripts/auto-update.py               OS lock and deadline runner (Python 3, POSIX)
 contracts/agentix-contract.json      checked MCP/REST/type snapshot
+contracts/agentix-contract-v0.3.json  supported legacy contract (43 MCP/60 REST)
+contracts/agentix-contract-v0.4.json  supported coordination contract (47/64)
 scripts/verify-contract.py           static and live compatibility check
+scripts/test_verify_contract.py      offline compatibility and drift tests
+.github/workflows/validate-plugin.yml package checks and scheduled live probe
+docs/project-state.md               concise maintainer context and handoff
+AGENTS.md                           startup and context-maintenance rules
 ```
 
 The repository uses one shared skill for both hosts. The Codex manifest does
@@ -89,16 +103,29 @@ lock recovery; the log limit is applied after the attempt, not continuously.
 ## Validate
 
 ```bash
-python3 /Users/viacheslavkuznetsov/.codex/skills/.system/plugin-creator/scripts/validate_plugin.py .
-claude plugin validate .
-bash -n scripts/auto-update.sh
 python3 scripts/verify-contract.py
+PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s scripts -p 'test_*.py'
+bash -n scripts/auto-update.sh
 ```
 
-GitHub Actions performs these static checks on every PR and also runs the live
-public contract probe on a schedule. Configure the repository secret
-`AGENTIX_CONTRACT_MCP_TOKEN` to make that scheduled check include the private
-MCP catalogue.
+If the Claude Code CLI is available, also run `claude plugin validate .`.
+The checks above use repository files and do not depend on a validator installed
+under a maintainer's personal skill directory.
+
+GitHub Actions validates manifests, frontmatter, shell syntax, the updater with
+mock clients, the static contract and the compatibility suite on every PR.
+It also runs the live public contract probe on a daily schedule or manual
+dispatch. Configure the repository secret `AGENTIX_CONTRACT_MCP_TOKEN` to make
+that probe include the authenticated MCP catalogue.
+
+For a public production check without credentials:
+
+```bash
+env -u AGENTIX_CONTRACT_MCP_TOKEN python3 scripts/verify-contract.py --live --base-url https://agentix.moone.dev
+```
+
+This checks REST operations and enums. It reports MCP as skipped; a public
+probe does not establish authenticated MCP behavior or a successful client pilot.
 
 For a candidate that must expose the new schema projection, supply the scoped
 `AGENTIX_CONTRACT_MCP_TOKEN` through the runner environment and use both requirements:
@@ -114,12 +141,14 @@ the public monitor continues to support legacy servers and reports skipped check
 
 ## Release status
 
-Version 0.5 supports the activation service (47 MCP tools, 70 REST operations),
+Released version 0.6.0 supports the activation service (47 MCP tools, 70 REST operations),
 coordination-only releases (47/64), and the legacy service (43/60). It detects
-capabilities before using new filters or coordination commands. During staged
-rollout, the public service may still expose an older supported contract.
+capabilities before using new filters or coordination commands, including when
+a deployment exposes an older supported contract. Dated production observations
+belong in [the project state](docs/project-state.md).
 
-The current local candidate adds `schemaContract.capabilities.documentReadersVersion:1`.
+Version 0.6.0 also describes the service candidate that is merged but not yet
+deployed (production observations are in the project state). That candidate adds `schemaContract.capabilities.documentReadersVersion:1`.
 Its document lists contain metadata without Markdown bodies; selected bodies still
 use `get_document`/`GET /api/documents/:ref`. History is paged metadata, while
 `GET /api/documents/:ref/versions?versionId=UUID` reads one full snapshot.

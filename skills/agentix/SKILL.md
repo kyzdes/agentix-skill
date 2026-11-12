@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Agentix
@@ -140,6 +140,32 @@ body with `get_document(sourceId)`. Both target and sources belong to the active
 workspace. Supported offsets are 0..1,000,000; a page requiring continuation above
 that bound fails explicitly. Offset pages can change under concurrent writes; older servers retain
 their discovered legacy response.
+
+On servers whose live schemas expose the fields below (no capability flag; check
+the tool schema or `GET /api/docs` before using them):
+
+- `list_activity` and `get_inbox` are newest first and every item carries an opaque
+  `cursor`. Pass the last item's `cursor` to read older items. REST `before` remains
+  for compatibility but can skip rows that share a millisecond; prefer `cursor`.
+- `get_document`, `update_document`, `export_document_md` and `delete_document`
+  accept `project` (key, UUID, or `"global"`) to select one of several documents
+  sharing a slug, such as the global and a project `index`. It selects; it does not
+  move the document. REST uses `?project=` on `/api/documents/:ref`, its `export`
+  and `versions`. An ambiguous slug without it fails rather than picking one.
+- `update_project`, `update_epic` and `update_milestone` accept an optional
+  `expectedRevision`; a stale value is a 409, omission stays allowed. Pass the
+  revision you read when another agent may edit the same plan object.
+- `unlink_issues` returns `{id,deleted,revision}`; `revision` is the source
+  issue's new revision for your next command.
+- An update cannot move an issue, epic or milestone to another project: `project`
+  in the update is a 400, not a silent no-op. A milestone name shared by two
+  projects is a 409 unless a project is given; an ambiguous user name is a 409.
+- Deleting an issue detaches its documents instead of deleting them.
+- `get_issue` embeds at most 200 children and 200 relations and reports
+  `truncated`; a checklist holds at most 200 items and a text at most 50 mentions.
+- `[[...]]` inside code blocks and inline code is literal text. `doc:`, `epic:`
+  and `milestone:` link prefixes are not resolved as issues.
+- Invitations and member removal are browser-session-only, like token administration.
 
 ## Creating runnable work
 
