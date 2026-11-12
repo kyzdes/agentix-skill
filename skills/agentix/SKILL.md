@@ -4,7 +4,7 @@ description: >-
   Work with a remote Agentix issue tracker over its MCP server or REST fallback. Use when Agentix tools are present, or when the user asks to find, create, update, link, plan, or document work in Agentix. Covers safe connection, context-efficient orientation, issue lifecycle, durable evidence, core types, and the complete tool map. Do not use for GitHub Issues, Jira, or Linear, and do not start a local Agentix source checkout merely to use the tracker.
 metadata:
   short-description: Work with Agentix over MCP
-  version: "0.5.0"
+  version: "0.6.0"
 ---
 
 # Agentix
@@ -82,6 +82,91 @@ use an explicit UUID for a cross-project reference. Do not construct a foreign
 document URL with the open issue's project. Fetch omitted context sections with
 the indicated IDs/readers rather than treating truncation as missing data.
 
+On servers advertising `schemaContract.capabilities.documentReadersVersion:1`,
+`list_documents` returns metadata without `contentMd` (default 50, max 200).
+Continue with `offset`; use `get_document(id)` for a selected Markdown body.
+Version history uses an authorized REST read at `/api/documents/<uuid>/versions`:
+`{items,total,nextCursor}` contains metadata (default 20, max 100). Pass the opaque
+`nextCursor` unchanged as `cursor` until it is null; request one snapshot with
+`?versionId=<uuid>`. Do not combine `versionId` with pagination. A selected version
+belongs to that document and workspace. Totals/pages use READ COMMITTED semantics,
+so concurrent writes can change the catalogue; they are not a fixed snapshot.
+On older servers, follow the discovered live contract and its legacy response.
+
+On servers advertising `schemaContract.capabilities.issueCommentsReadersVersion:1`,
+`get_issue` includes only the latest 20 comments and `commentPage:{total,nextCursor}`.
+`list_comments(issue, limit?, cursor?)` and REST `/api/issues/<uuid>/comments` return
+`{items,total,nextCursor}` (default 20, max 200). Each page lists its comments from
+oldest to newest; the cursor fetches the preceding, older page. Prepend that page
+when building a chronological thread. Pass `nextCursor` unchanged until null; do
+not infer that the first page is the whole conversation. Cursor identity is bound
+to the issue; malformed or mismatched cursors fail. This public reader rejects
+legacy `offset` rather than changing its meaning. Concurrent inserts appear after
+refreshing the first page; totals can change and reads do not form a snapshot.
+This capability bounds comments only; other issue collections retain their live
+contract. Write results have their own capability below; stored retries may retain
+the older full detail shape. Older servers
+keep their discovered legacy comment shape and arguments.
+
+On servers advertising `schemaContract.capabilities.issueMutationResultsVersion:1`,
+`create_issue`, `update_issue`, `move_issue`, `assign_issue`, `add_sub_issue`,
+`set_task_spec`, `link_issues` and `complete_issue` return the issue's card fields
+(IDs/key, revision/specRevision, title/status/priority, planning IDs, assignee,
+labels and dates), plus `descriptionMd`, `relevantPaths`, `testCommand` and `parentId`.
+`link_issues` also returns `relationId`, usable by `unlink_issues` without rereading
+the whole issue. A keyed retry returns the original success if that relation was
+later removed; it does not recreate the relation, and source access is checked again.
+`complete_issue` also returns `claim:null` and singular `completion`: exactly the
+new report with its ID, provenance, evidence and requirements revision. It is not
+completion history. REST create/PATCH issue, PATCH spec, POST relations and POST
+complete use the same result semantics; onboarding creation retains its own shape.
+
+Comments, checklist, children, relations and completion history are omitted, not
+empty. Keep the authoritative returned revision for your next command. A status
+change with unchanged `specRevision` can be merged into the task already read while
+retaining its checklist. Retain other prior collections only when the operation
+cannot affect them; changed requirements or links need the existing detail refresh
+before using affected data. Do not replace a full task snapshot with a mutation
+result. Existing idempotent retries still return the originally stored result
+exactly, including a legacy full detail; reusing a key does not upgrade its shape.
+New results omit history independently of its length. These fields are sufficient
+for chaining ordinary writes without adding a mandatory read after every command.
+
+On servers advertising `schemaContract.capabilities.backlinksReadersVersion:1`,
+`get_backlinks(issue, limit?, offset?)` returns `{items,nextOffset}` containing
+document link metadata, without Markdown bodies (default 20, max 100). Pass the
+returned `nextOffset` until it is null; documents are ordered by ID. Read a selected
+body with `get_document(sourceId)`. Both target and sources belong to the active
+workspace. Supported offsets are 0..1,000,000; a page requiring continuation above
+that bound fails explicitly. Offset pages can change under concurrent writes; older servers retain
+their discovered legacy response.
+
+On servers whose live schemas expose the fields below (no capability flag; check
+the tool schema or `GET /api/docs` before using them):
+
+- `list_activity` and `get_inbox` are newest first and every item carries an opaque
+  `cursor`. Pass the last item's `cursor` to read older items. REST `before` remains
+  for compatibility but can skip rows that share a millisecond; prefer `cursor`.
+- `get_document`, `update_document`, `export_document_md` and `delete_document`
+  accept `project` (key, UUID, or `"global"`) to select one of several documents
+  sharing a slug, such as the global and a project `index`. It selects; it does not
+  move the document. REST uses `?project=` on `/api/documents/:ref`, its `export`
+  and `versions`. An ambiguous slug without it fails rather than picking one.
+- `update_project`, `update_epic` and `update_milestone` accept an optional
+  `expectedRevision`; a stale value is a 409, omission stays allowed. Pass the
+  revision you read when another agent may edit the same plan object.
+- `unlink_issues` returns `{id,deleted,revision}`; `revision` is the source
+  issue's new revision for your next command.
+- An update cannot move an issue, epic or milestone to another project: `project`
+  in the update is a 400, not a silent no-op. A milestone name shared by two
+  projects is a 409 unless a project is given; an ambiguous user name is a 409.
+- Deleting an issue detaches its documents instead of deleting them.
+- `get_issue` embeds at most 200 children and 200 relations and reports
+  `truncated`; a checklist holds at most 200 items and a text at most 50 mentions.
+- `[[...]]` inside code blocks and inline code is literal text. `doc:`, `epic:`
+  and `milestone:` link prefixes are not resolved as issues.
+- Invitations and member removal are browser-session-only, like token administration.
+
 ## Creating runnable work
 
 A useful issue has one coherent outcome:
@@ -104,6 +189,7 @@ Split a smaller piece with `add_sub_issue`; group a theme under an epic; use a m
 - Omitted fields mean unchanged/defaulted; `null` clears only fields whose live schema is nullable.
 - Markdown fields are `description`, `content`, and `body` at the agent edge; REST also accepts their `*Md` forms.
 - Dates are ISO strings. IDs are UUID strings. List bounds and exact write fields come from the live tool/REST schema.
+- If `GET /api/docs` reports `schemaContract.capabilities.inboxExplicitSelection:true`, `mark_read` requires exactly one selector: nonempty `notificationIds` or `all:true`; an empty request is invalid. On older servers, follow the discovered live schema.
 
 Core enums:
 

@@ -28,12 +28,8 @@ else
   CACHE_ROOT="${AGENTIX_PLUGIN_CACHE_ROOT:-${agentix_user_home}/.cache/agentix-plugin}"
 fi
 
-STAMP="${CACHE_ROOT}/last-update"
-LOCK_DIR="${CACHE_ROOT}/update.lock"
-LOG="${CACHE_ROOT}/update.log"
 DEBOUNCE_SEC="${AGENTIX_PLUGIN_AUTO_UPDATE_INTERVAL_SEC:-14400}"
 MAX_LOG_BYTES="${AGENTIX_PLUGIN_AUTO_UPDATE_LOG_BYTES:-65536}"
-LOCK_STALE_SEC=120
 
 [ -n "$CACHE_ROOT" ] || exit 0
 case "$DEBOUNCE_SEC" in *[!0-9]* | "") DEBOUNCE_SEC=14400 ;; esac
@@ -56,60 +52,9 @@ raise SystemExit(0 if plugin_ref in plugins else 1)
 PY
 fi
 
-mkdir -p "$CACHE_ROOT"
-chmod 700 "$CACHE_ROOT" 2>/dev/null || true
-
-mtime() {
-  if [ "$(uname)" = "Darwin" ]; then
-    stat -f %m "$1" 2>/dev/null || printf '0\n'
-  else
-    stat -c %Y "$1" 2>/dev/null || printf '0\n'
-  fi
-}
-
-now="$(date +%s)"
-if ! mkdir "$LOCK_DIR" 2>/dev/null; then
-  lock_age=$((now - $(mtime "$LOCK_DIR")))
-  [ "$lock_age" -ge "$LOCK_STALE_SEC" ] || exit 0
-  rmdir "$LOCK_DIR" 2>/dev/null || exit 0
-  mkdir "$LOCK_DIR" 2>/dev/null || exit 0
-fi
-# shellcheck disable=SC2329 # invoked through the EXIT/HUP/INT/TERM trap below
-release_lock() { rmdir "$LOCK_DIR" 2>/dev/null || true; }
-trap 'release_lock' EXIT HUP INT TERM
-
-# The debounce check is inside the lock so concurrent SessionStart hooks cannot
-# both pass it. The stamp is replaced atomically after an attempted update.
-if [ -f "$STAMP" ]; then
-  age=$((now - $(mtime "$STAMP")))
-  [ "$age" -ge "$DEBOUNCE_SEC" ] || exit 0
-fi
-
-{
-  printf '%s\n' "--- $(date -u '+%Y-%m-%dT%H:%M:%SZ') ---"
-  if [ "$CLIENT" = "codex" ]; then
-    "$CLIENT_BIN" plugin marketplace upgrade "$MARKETPLACE" 2>&1 | sed 's/^/  /' || true
-    printf '  reinstalling %s\n' "$PLUGIN_REF"
-    "$CLIENT_BIN" plugin add "$PLUGIN_REF" 2>&1 | sed 's/^/    /' || true
-  else
-    "$CLIENT_BIN" plugin marketplace update "$MARKETPLACE" 2>&1 | sed 's/^/  /' || true
-    printf '  updating %s\n' "$PLUGIN_REF"
-    "$CLIENT_BIN" plugin update "$PLUGIN_REF" 2>&1 | sed 's/^/    /' || true
-  fi
-} >> "$LOG" 2>&1
-chmod 600 "$LOG" 2>/dev/null || true
-
-stamp_tmp="${STAMP}.$$"
-date -u '+%Y-%m-%dT%H:%M:%SZ' > "$stamp_tmp"
-mv -f "$stamp_tmp" "$STAMP"
-chmod 600 "$STAMP" 2>/dev/null || true
-
-log_size="$(wc -c < "$LOG" | tr -d ' ')"
-if [ "$log_size" -gt "$MAX_LOG_BYTES" ]; then
-  log_tmp="${LOG}.$$"
-  tail -c "$MAX_LOG_BYTES" "$LOG" > "$log_tmp"
-  chmod 600 "$log_tmp" 2>/dev/null || true
-  mv -f "$log_tmp" "$LOG"
-fi
-
-exit 0
+# Python is already used for package validation. Skip optional updates when it
+# is unavailable; never fall back to an unprotected updater.
+command -v python3 >/dev/null 2>&1 || exit 0
+exec python3 "$(dirname "${BASH_SOURCE[0]}")/auto-update.py" \
+  "$CACHE_ROOT" "$CLIENT" "$CLIENT_BIN" "$MARKETPLACE" "$PLUGIN_REF" \
+  "$DEBOUNCE_SEC" "$MAX_LOG_BYTES"
