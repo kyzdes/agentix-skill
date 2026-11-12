@@ -37,6 +37,13 @@ class AutoUpdateTests(unittest.TestCase):
             time.sleep(.02)
         self.assertTrue(self.calls.exists())
 
+    def update_once_lock_frees(self):
+        # The killed client group shares the lock; it frees a moment after the owner exits.
+        until = time.monotonic() + 3
+        while len(self.calls.read_text().splitlines()) < 3 and time.monotonic() < until:
+            self.run_update(AGENTIX_PLUGIN_AUTO_UPDATE_INTERVAL_SEC="0")
+            time.sleep(.05)
+
     def test_opt_in_and_debounce(self):
         self.run_update(AGENTIX_PLUGIN_AUTO_UPDATE="0")
         self.assertFalse(self.calls.exists())
@@ -62,7 +69,7 @@ class AutoUpdateTests(unittest.TestCase):
             self.assertEqual(len(self.calls.read_text().splitlines()), 1)
             proc.wait(timeout=4)
             self.assertIn("deadline", (self.root / "cache/update.log").read_text())
-            self.run_update(AGENTIX_PLUGIN_AUTO_UPDATE_INTERVAL_SEC="0")
+            self.update_once_lock_frees()
             self.assertEqual(len(self.calls.read_text().splitlines()), 3)
         finally:
             if proc.poll() is None:
@@ -75,7 +82,7 @@ class AutoUpdateTests(unittest.TestCase):
             self.wait_started()
             proc.send_signal(signal.SIGTERM)
             proc.wait(timeout=3)
-            self.run_update(AGENTIX_PLUGIN_AUTO_UPDATE_INTERVAL_SEC="0")
+            self.update_once_lock_frees()
             self.assertEqual(len(self.calls.read_text().splitlines()), 3)
         finally:
             if proc.poll() is None:
